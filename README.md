@@ -1,108 +1,226 @@
-# XAI-ERP: Explainable AI-Driven Decision Support for Predictive Inventory and Procurement Optimization in ERP Systems
+# Explainable AI-Driven Decision Support for Predictive Inventory and Procurement Optimization in ERP Systems
 
-**Status:** Proposal / pre-implementation
-**Document set version:** 1.0 — 18 August 2026
-**Target output:** B.Tech final-year project + one conference paper (IEEE / Springer, Scopus-indexed)
+**PBL-1 · Machine Learning (Units 1 & 2)**
 
----
+An end-to-end system that turns 1,067,371 real retail transactions into
+auditable purchase recommendations — and explains every one of them.
 
-## What this project actually is
-
-A **decision-support pipeline** that sits on top of ERP transactional data and does four things in sequence:
-
-1. **Forecasts demand probabilistically** (not just a point number — a full distribution per SKU per horizon).
-2. **Converts that distribution into inventory risk** (stockout probability, expected units short, days-to-stockout).
-3. **Optimizes the procurement decision** under real constraints (MOQ, lead time, budget, supplier capacity) using mixed-integer programming.
-4. **Explains the recommendation itself** — not just the forecast — and is evaluated on whether those explanations are faithful and useful.
-
-The ERP dashboard is the *delivery vehicle*, not the contribution. The contribution is items 1–4 evaluated end-to-end on **decision cost**, not only forecast error.
-
----
-
-## Read the documents in this order
-
-| # | Document | What it answers |
-|---|----------|-----------------|
-| 00 | [Executive Summary](docs/00-executive-summary.md) | The one-page version. Read first. |
-| 01 | [Problem & Motivation](docs/01-problem-and-motivation.md) | Why fixed reorder points fail; what it costs |
-| 02 | [Literature Review & Research Gap](docs/02-literature-review-and-research-gap.md) | What exists, what's missing, honest novelty assessment |
-| 03 | [Dataset Audit](docs/03-datasets.md) | **Verified** facts on Favorita + Online Retail II, what they lack, how to get them |
-| 04 | [Methodology](docs/04-methodology.md) | The full mathematical pipeline, stage by stage |
-| 05 | [System Architecture](docs/05-system-architecture.md) | Components, data flow, ERP integration surface |
-| 06 | [Experimental Design](docs/06-experimental-design.md) | Baselines, ablations, scenarios, statistical validation |
-| 07 | [Evaluation Metrics](docs/07-evaluation-metrics.md) | Every metric, with formulas and why each is there |
-| 08 | [Implementation Plan](docs/08-implementation-plan.md) | Repo layout, tech stack, 16-week schedule |
-| 09 | [Risks & Mitigations](docs/09-risks-and-mitigations.md) | What can sink this and what to do about it |
-| 10 | [Paper Outline](docs/10-paper-outline.md) | Section-by-section paper plan + venue shortlist |
-| 11 | [References](docs/11-references.md) | Sources, all verified as of Aug 2026 |
-
----
-
-## The three things to internalise before you start
-
-**1. Neither dataset contains supplier or inventory data.** Favorita and Online Retail II are *sales* datasets. There are no stock positions, no purchase orders, no lead times, no supplier records anywhere in either. The procurement layer must be a **declared simulation**, and the paper must say so in the methodology section, in the limitations section, and in the figure captions. Reviewers reject papers that blur this line. See [03-datasets](docs/03-datasets.md) §5.
-
-**2. The commonly-used Favorita file is aggregated to product *family*, not SKU.** The popular `store-sales-time-series-forecasting` release has 33 families × 54 stores = 1,782 series — these are smooth, not intermittent. If you want to answer "which model wins under intermittent demand," you need the **original 2017 competition release** with item-level data (~4,100 items, 125.5M rows). Using the family-level file and then claiming intermittency findings is a factual error a reviewer will catch. See [03-datasets](docs/03-datasets.md) §2.
-
-**3. Forecast accuracy is not the deliverable.** A model with lower MAE can produce *worse* inventory decisions. The primary result table in the paper must be **cost and service level from the inventory simulator**, with forecast error as a secondary table. This is the single design choice that separates this from the hundreds of "we compared XGBoost and LSTM on retail sales" papers. See [04-methodology](docs/04-methodology.md) §7 and [06-experimental-design](docs/06-experimental-design.md) §4.
-
----
-
-## Quick orientation: the pipeline in one diagram
+> The original research proposal this repository started from is preserved at
+> [`docs/00-original-proposal-readme.md`](docs/00-original-proposal-readme.md).
+> What was implemented and what was deliberately deferred is recorded in
+> [`docs/pbl1_scope.md`](docs/pbl1_scope.md).
 
 ```
-  Favorita (primary)          Online Retail II (external validation)
-         │                                  │
-         └──────────────┬───────────────────┘
-                        ▼
-              Feature engineering
-      (calendar, lags, rolling stats, promo,
-       holidays, oil, price, SBC demand class)
-                        ▼
-        ┌───────────────────────────────┐
-        │  PROBABILISTIC FORECASTING    │   ← quantiles, not point estimates
-        │  LGBM-quantile / TFT / DeepAR │
-        │  vs ARIMA, ETS, Croston, TSB  │
-        └───────────────┬───────────────┘
-                        ▼
-              Conformal calibration          ← distribution-free coverage
-                        ▼
-        ┌───────────────────────────────┐
-        │  LEAD-TIME DEMAND DISTRIBUTION│   ← convolve demand × stochastic lead time
-        │  → P(stockout), E[units short]│
-        └───────────────┬───────────────┘
-                        ▼
-        ┌───────────────────────────────┐
-        │  PROCUREMENT OPTIMIZER (MILP) │   ← OR-Tools; MOQ, capacity, budget,
-        │  order qty · timing · supplier│      multi-supplier allocation
-        └───────────────┬───────────────┘
-                        ▼
-        ┌───────────────────────────────┐
-        │  TWO-LEVEL EXPLANATION        │
-        │  L1: SHAP on the forecast     │
-        │  L2: DECISION ATTRIBUTION —   │   ← the actual novelty
-        │      decompose the order qty  │
-        │      + counterfactual "what-if"│
-        └───────────────┬───────────────┘
-                        ▼
-        ┌───────────────────────────────┐
-        │  INVENTORY DIGITAL TWIN       │   ← where the results come from
-        │  replay policy over holdout   │
-        │  → cost, stockouts, turnover  │
-        └───────────────┬───────────────┘
-                        ▼
-                 ERP Dashboard
+Historical sales  →  Cleaning  →  EDA  →  Features  →  Regression (7-day demand)
+                                                    →  Classification (reorder?)
+                                                    →  Model comparison
+                                                    →  Explainable AI
+                                                    →  Inventory risk
+                                                    →  Procurement recommendation
+                                                    →  Streamlit dashboard
 ```
 
 ---
 
-## Getting started
+## Headline results
+
+| | |
+|---|---|
+| **Best forecaster** | Ridge Regression (α=100) — test RMSE **288.53**, R² **0.510** |
+| **Best classifier** | LightGBM — F1 **0.778**, recall **0.816**, AUC **0.921** |
+| **Uncertainty** | LightGBM quantiles, P90 coverage **89.2%** (target 90%) |
+| **Service gain** | Fill rate **79.9% → 93.9%** (+14.0pp), stockout days −75% |
+| **Explanation integrity** | Decomposition residual **0.000000** across 16,689 decisions |
+| **Verification** | **81 tests passing**, 16 pipeline stages, 10 executed notebooks |
+
+Three findings reported because they are true, not because they flatter:
+
+- **A better point forecast alone did not improve service.** Policy P2 (ML
+  forecast, no safety buffer) achieved a 79.2% fill rate — *below* the 79.9%
+  naive baseline. The gain came entirely from modelling uncertainty.
+- **LightGBM lost the regression task**, placing 6th of 7 behind a 28-day
+  moving average, because demand is 31.7% zero-inflated and the test period
+  lies outside the training range.
+- **The RBF kernel lost to the linear kernel** (SVM F1 0.718 vs 0.748) with
+  identical C, features and subsample.
+
+---
+
+## Quick start
 
 ```bash
-cd Documents/ML-Project
-# 1. Read docs/00 through docs/03 before touching code.
-# 2. Set up environment per docs/08-implementation-plan.md §3
-# 3. Acquire data per docs/03-datasets.md §6
+# 1. Environment (Python 3.11)
+py -3.11 -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+
+# 2. Everything, end to end (~15 min on first run)
+.venv\Scripts\python scripts\run_pipeline.py
+
+# 3. The demo
+.venv\Scripts\streamlit run dashboard\app.py
 ```
 
-Nothing in this repository is implemented yet. These documents are the specification.
+Individual stages:
+
+```bash
+.venv\Scripts\python scripts\download_data.py          # no credentials needed
+.venv\Scripts\python scripts\prepare_data.py
+.venv\Scripts\python scripts\run_eda.py
+.venv\Scripts\python sim\generate_supply.py
+.venv\Scripts\python sim\inventory_state.py
+.venv\Scripts\python scripts\build_features.py
+.venv\Scripts\python scripts\train_models.py           # or --stage regression
+.venv\Scripts\python scripts\run_simulation.py
+.venv\Scripts\python scripts\run_explainability.py
+.venv\Scripts\python -m pytest
+.venv\Scripts\python scripts\check_pbl1_completeness.py
+```
+
+Resume after a failure: `run_pipeline.py --from train_regression`
+
+---
+
+## Data provenance — read this first
+
+| Category | Fields | Provenance |
+|---|---|---|
+| Demand side | units sold, date, price, SKU, country, invoice | **REAL** (UCI Online Retail II, CC BY 4.0) |
+| Supply side | stock, suppliers, lead time, MOQ, pack size, capacity, costs | **SIMULATED** |
+
+UCI Online Retail II is a **sales log**. It contains no inventory, suppliers,
+lead times or costs — and you cannot make a procurement decision without them.
+Those values are generated by `sim/` from `sim/supply_config.yaml` under a
+fixed seed, are flagged `is_simulated` in every artefact, and are labelled as
+simulated in the dashboard, notebooks and report.
+
+Policy comparisons are valid because all policies face identical real demand
+and identical simulated terms. **Absolute currency figures are not claims about
+the real retailer.**
+
+---
+
+## Dataset
+
+**UCI Online Retail II** — <https://archive.ics.uci.edu/dataset/502/online+retail+ii>
+
+| | |
+|---|---|
+| Raw invoice lines | 1,067,371 |
+| Period | 2009-12-01 → 2011-12-09 |
+| After cleaning | 1,024,819 (96.01% retained) |
+| Modelled panel | 200 SKUs × 604 trading days = 120,800 rows |
+| Credentials | **None** |
+
+Chosen over the richer Kaggle Favorita competition because it needs no
+credentials, so the project reproduces from one command. Full reasoning and the
+trade-offs accepted: [`docs/dataset_acquisition.md`](docs/dataset_acquisition.md).
+
+---
+
+## Repository layout
+
+```
+config/project.yaml              every tunable parameter
+sim/
+  supply_config.yaml             SIMULATED supply-side distributions
+  generate_supply.py             supplier master
+  inventory_state.py             daily stock trajectory + reorder labels
+src/xaierp/
+  ingest/      read, validate, clean, build the daily panel
+  features/    calendar, lag, rolling features (no future information)
+  models/      regression and classification model zoo
+  policy/      reorder quantity with MOQ / pack / capacity
+  simulate/    procurement cost simulation, policy ladder
+  explain/     SHAP, decision decomposition, what-if
+  utils/       config, seeding, metrics
+scripts/       download, prepare, eda, features, train, simulate, explain,
+               plots, pipeline, completeness, notebooks
+notebooks/     01-10, all executed
+tests/         81 tests
+dashboard/     Streamlit app (6 pages)
+reports/       figures, tables, generated explanations
+paper/         pbl1_report.md
+docs/          scope, rubric mapping, EDA insights, model selection, viva, ...
+```
+
+---
+
+## Documentation
+
+| Document | Purpose |
+|---|---|
+| [`docs/pbl1_scope.md`](docs/pbl1_scope.md) | What is implemented, what is deferred, and why |
+| [`docs/pbl1_rubric_mapping.md`](docs/pbl1_rubric_mapping.md) | Every rubric item → notebook, file, artefact, syllabus topic |
+| [`docs/dataset_acquisition.md`](docs/dataset_acquisition.md) | Dataset choice, download, what it does *not* contain |
+| [`docs/eda_insights.md`](docs/eda_insights.md) | 16 figures: observation → interpretation → business implication |
+| [`docs/model_selection.md`](docs/model_selection.md) | Why each winner won, including the uncomfortable results |
+| [`docs/erp_integration_ready.md`](docs/erp_integration_ready.md) | What integration would take; what is *not* claimed |
+| [`docs/viva_questions.md`](docs/viva_questions.md) | Q&A with this project's real numbers |
+| [`docs/pbl1_presentation.md`](docs/pbl1_presentation.md) | 14 slides with speaking scripts |
+| [`paper/pbl1_report.md`](paper/pbl1_report.md) | Full report |
+| [`docs/implementation_audit.md`](docs/implementation_audit.md) | State of the original proposal and what changed |
+
+The original research-proposal documents (`docs/00-executive-summary.md`
+through `docs/11-references.md`, `decisions.md`, `lit-log.md`) are retained
+unchanged.
+
+---
+
+## Syllabus coverage
+
+**Unit 1** — supervised learning · regression · classification · polynomial
+curve fitting (degrees 1-4) · overfitting/underfitting (measured: test R²
+0.50 → −4.23) · least squares · probability & PDFs · Bayes rule (Gaussian NB) ·
+quantiles (P50-P95) · mean & variance (`Var(X)=E[X²]−E[X]²` verified) ·
+expectation · covariance
+
+**Unit 2** — MLE ↔ least squares (derived) · ridge regression · Bayesian linear
+regression (with predictive σ) · robust regression (Huber) · discriminant
+function (LDA) · probabilistic generative (GaussianNB) · probabilistic
+discriminative (Logistic) · kernel functions · kernel trick (linear vs RBF
+SVM) · SVMs
+
+*Deferred and marked as such:* Laplace approximation, Bayesian logistic
+regression — see [`docs/pbl1_scope.md`](docs/pbl1_scope.md) §2.
+
+---
+
+## Testing
+
+```bash
+.venv\Scripts\python -m pytest
+# 81 passed
+```
+
+| File | Covers |
+|---|---|
+| `test_no_leakage.py` | No feature sees the present or future; splits don't overlap |
+| `test_data_quality.py` | Panel density, no duplicates, cleaning log adds up |
+| `test_features.py` | Lag/rolling/price arithmetic against hand calculations |
+| `test_models.py` | Every model trains; comparison tables are coherent |
+| `test_inventory_conservation.py` | `ending = beginning + arrivals − consumed` |
+| `test_reorder_policy.py` | Never negative; MOQ honoured; pack multiples; capacity |
+| `test_decision_explanation.py` | Explanation reconciles; refuses to render if tampered |
+| `test_simulation.py` | Seed reproducibility; what-if responds to every lever |
+
+---
+
+## Notes on the development environment
+
+Built on Windows 11 / Python 3.11 on a memory-constrained machine. Two
+accommodations are in the code and documented where they occur:
+
+- the 45 MB workbook is **streamed** to Parquet rather than loaded
+  (`pandas.read_excel` exhausted available memory);
+- training runs **one subprocess per stage** with BLAS thread pools capped at 1.
+
+Neither changes any result.
+
+---
+
+## Licence and attribution
+
+Code: for academic use.
+Data: UCI Online Retail II, CC BY 4.0 —
+Chen, D. (2019), <https://doi.org/10.24432/C5CG6D>.
+The dataset is **not** redistributed here; `scripts/download_data.py` fetches it.

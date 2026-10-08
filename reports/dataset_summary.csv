@@ -1,0 +1,15 @@
+metric,value
+Rows in daily panel,"120,800"
+SKUs modelled,200
+Trading days,604
+Date range,2009-12-01 to 2011-12-09
+Total units sold,"3,457,980"
+Total revenue,"8,318,790"
+Mean daily demand per SKU,28.63
+Median daily demand per SKU,6.00
+Std of daily demand,94.29
+Variance of daily demand,8890.77
+Skewness of daily demand,24.57
+Min / Max daily demand,0 / 9480
+SKU-days with zero demand,31.7%
+Non-trading calendar days,135

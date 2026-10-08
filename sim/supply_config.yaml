@@ -1,0 +1,91 @@
+# ============================================================
+# SIMULATED SUPPLY-SIDE PARAMETERS
+# ============================================================
+# READ THIS BEFORE USING ANY NUMBER BELOW.
+#
+# UCI Online Retail II is a SALES transaction log. It contains no inventory
+# positions, no purchase orders, no suppliers, no lead times, no costs.
+# Every parameter in this file is therefore SYNTHETIC. It is generated from
+# the distributions declared here with a fixed seed so the whole project
+# stays reproducible, but it is NOT measured from the real business.
+#
+# Real (from the dataset)   : quantity sold, price, date, SKU, country, invoice
+# Simulated (this file)     : stock on hand, suppliers, lead time, MOQ,
+#                             pack size, capacity, reliability, all costs
+#
+# Any claim about cost savings in this project is a claim about this
+# simulated supply environment, not about the real retailer.
+
+seed: 42
+
+suppliers:
+  # Each SKU is served by this many candidate suppliers.
+  per_sku: 3
+  # Lead time in days ~ Gamma(shape, scale), clipped to [min, max], rounded.
+  lead_time:
+    distribution: gamma
+    shape: 4.0
+    scale: 1.6
+    min_days: 2
+    max_days: 21
+  # Day-to-day lead-time noise, as a fraction of the mean lead time.
+  lead_time_cv:
+    distribution: uniform
+    low: 0.10
+    high: 0.35
+  # Unit purchase cost as a fraction of the SKU's observed median sale price.
+  # Below 1.0 so that a gross margin exists.
+  unit_cost_ratio:
+    distribution: uniform
+    low: 0.45
+    high: 0.70
+  # Minimum order quantity, drawn from a discrete set typical of wholesale.
+  moq:
+    choices: [12, 24, 48, 72, 96, 144]
+    weights: [0.22, 0.26, 0.22, 0.14, 0.10, 0.06]
+  # Orders must be a multiple of the pack size.
+  pack_size:
+    choices: [1, 6, 12, 24]
+    weights: [0.25, 0.30, 0.30, 0.15]
+  # Maximum units a supplier can ship in one order, as a multiple of the
+  # SKU's mean weekly demand.
+  #
+  # Sized against the ordering cycle, not plucked arbitrarily. With lead
+  # times up to 21 days and a weekly review, one order has to cover roughly
+  # 4 weeks of demand plus a safety buffer. An earlier setting of 2-8 weeks
+  # made capacity the binding constraint on nearly every order, which flattened
+  # the what-if analysis (every scenario returned the same clipped quantity)
+  # and hid the effect of lead time and stock. 6-20 weeks leaves capacity
+  # binding occasionally -- which is realistic and keeps the constraint
+  # meaningful -- without it dominating every decision.
+  capacity_weeks:
+    distribution: uniform
+    low: 6.0
+    high: 20.0
+  # Probability the supplier delivers on the promised date.
+  reliability:
+    distribution: uniform
+    low: 0.80
+    high: 0.99
+
+costs:
+  # Annual holding cost as a fraction of unit cost; converted to daily in code.
+  holding_cost_rate_annual: 0.25
+  # Penalty per unit of unmet demand, as a multiple of unit cost.
+  # Greater than 1 because a stockout costs margin plus goodwill.
+  shortage_cost_multiplier: 2.5
+  # Flat administrative cost of raising one purchase order.
+  ordering_cost_per_order: 25.0
+
+inventory:
+  # Opening stock on the first simulated day, expressed in days of cover
+  # based on each SKU's early-period mean daily demand.
+  initial_days_of_cover:
+    distribution: uniform
+    low: 7.0
+    high: 21.0
+  # Target service level used by the classical reorder policy.
+  service_level: 0.95
+  # A day is labelled "stockout risk" when projected lead-time demand
+  # exceeds available stock by more than this fraction.
+  stockout_risk_tolerance: 0.0

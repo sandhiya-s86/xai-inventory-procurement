@@ -1,0 +1,242 @@
+[
+  {
+    "sku": "20727",
+    "description": "LUNCH BAG  BLACK SKULL.",
+    "date": "2011-11-30 00:00:00",
+    "predicted_7d_demand": 486.3,
+    "current_stock": 347.2,
+    "lead_time_days": 8,
+    "stockout_risk": "HIGH",
+    "reorder_probability": 0.9999,
+    "reorder": true,
+    "recommended_qty": 1380,
+    "order_value": 1065.22,
+    "days_of_cover_after": 15.6,
+    "demand_reasons": [
+      "is month end is 1.0, pushing the forecast up by 69.5 units",
+      "average daily demand over the last 7 days is 54.7, pushing the forecast up by 48.5 units",
+      "average daily demand over the last 28 days is 43.9, pushing the forecast up by 47.5 units",
+      "share of the last 28 days with no sales is 0.000, pulling the forecast down by 39.0 units",
+      "quarter is 4.0, pulling the forecast down by 18.4 units"
+    ],
+    "quantity_reasons": [
+      "Expected demand over the 8-day lead time plus the review period is 1,042 units.",
+      "A safety buffer of 675 units covers forecast error at the target service level.",
+      "347 units are already available or on order, which reduces the requirement.",
+      "Rounding up to whole packs of 12 adds 10.1 units."
+    ],
+    "decomposition": {
+      "expected demand over lead time": 1042.11,
+      "safety stock": 674.98,
+      "less: stock already available / on order": -347.2,
+      "clip at zero (never order negative)": 0.0,
+      "supplier minimum order quantity": 0.0,
+      "pack-size rounding": 10.11,
+      "supplier capacity cap": 0.0
+    },
+    "decomposition_total": 1380,
+    "reconciles": true,
+    "actual_7d_demand": 334.0,
+    "actual_reorder_label": 1
+  },
+  {
+    "sku": "21258",
+    "description": "VICTORIAN SEWING BOX LARGE",
+    "date": "2011-10-20 00:00:00",
+    "predicted_7d_demand": 1.1,
+    "current_stock": 366.0,
+    "lead_time_days": 12,
+    "stockout_risk": "LOW",
+    "reorder_probability": 0.001,
+    "reorder": false,
+    "recommended_qty": 0,
+    "order_value": 0.0,
+    "days_of_cover_after": 188.3,
+    "demand_reasons": [
+      "rolling std 14 is 5.0, pushing the forecast up by 81.0 units",
+      "demand volatility over the last 7 days is 6.6, pushing the forecast up by 50.4 units",
+      "share of the last 28 days with no sales is 0.429, pushing the forecast up by 37.4 units",
+      "average daily demand over the last 28 days is 1.9, pulling the forecast down by 130 units",
+      "average daily demand over the last 7 days is 3.1, pulling the forecast down by 66.2 units"
+    ],
+    "quantity_reasons": [
+      "Expected demand over the 12-day lead time plus the review period is 2.9 units.",
+      "A safety buffer of 154 units covers forecast error at the target service level.",
+      "366 units are already available or on order, which reduces the requirement.",
+      "Stock already exceeds the requirement, so the raw calculation was negative and has been clipped to zero."
+    ],
+    "decomposition": {
+      "expected demand over lead time": 2.86,
+      "safety stock": 153.9,
+      "less: stock already available / on order": -366.04,
+      "clip at zero (never order negative)": 209.28,
+      "supplier minimum order quantity": 0.0,
+      "pack-size rounding": 0.0,
+      "supplier capacity cap": 0.0
+    },
+    "decomposition_total": 0,
+    "reconciles": true,
+    "actual_7d_demand": 15.0,
+    "actual_reorder_label": 0
+  },
+  {
+    "sku": "20724",
+    "description": "RED RETROSPOT CHARLOTTE BAG",
+    "date": "2011-11-01 00:00:00",
+    "predicted_7d_demand": 501.2,
+    "current_stock": 1398.0,
+    "lead_time_days": 17,
+    "stockout_risk": "HIGH",
+    "reorder_probability": 0.9646,
+    "reorder": true,
+    "recommended_qty": 3114,
+    "order_value": 1365.49,
+    "days_of_cover_after": 46.5,
+    "demand_reasons": [
+      "average daily demand over the last 28 days is 60.1, pushing the forecast up by 116 units",
+      "average daily demand over the last 7 days is 71.1, pushing the forecast up by 85.1 units",
+      "peak daily demand in the last 7 days is 218, pushing the forecast up by 34.9 units",
+      "rolling std 14 is 69.6, pulling the forecast down by 50.8 units",
+      "demand volatility over the last 7 days is 69.8, pulling the forecast down by 48.0 units"
+    ],
+    "quantity_reasons": [
+      "Expected demand over the 17-day lead time plus the review period is 1,718 units.",
+      "A safety buffer of 2,793 units covers forecast error at the target service level.",
+      "1,398 units are already available or on order, which reduces the requirement.",
+      "Rounding up to whole packs of 6 adds 0.494 units."
+    ],
+    "decomposition": {
+      "expected demand over lead time": 1718.39,
+      "safety stock": 2793.13,
+      "less: stock already available / on order": -1398.02,
+      "clip at zero (never order negative)": 0.0,
+      "supplier minimum order quantity": 0.0,
+      "pack-size rounding": 0.49,
+      "supplier capacity cap": 0.0
+    },
+    "decomposition_total": 3114,
+    "reconciles": true,
+    "actual_7d_demand": 300.0,
+    "actual_reorder_label": 1
+  },
+  {
+    "sku": "15036",
+    "description": "ASSORTED COLOURS SILK FAN",
+    "date": "2011-12-01 00:00:00",
+    "predicted_7d_demand": 278.8,
+    "current_stock": 413.5,
+    "lead_time_days": 8,
+    "stockout_risk": "MEDIUM",
+    "reorder_probability": 0.6409,
+    "reorder": true,
+    "recommended_qty": 1704,
+    "order_value": 650.42,
+    "days_of_cover_after": 63.8,
+    "demand_reasons": [
+      "month of the year is 12.0, pushing the forecast up by 26.1 units",
+      "is month start is 1.0, pushing the forecast up by 25.3 units",
+      "average daily demand over the last 7 days is 42.7, pushing the forecast up by 21.8 units",
+      "average daily demand over the last 28 days is 23.8, pulling the forecast down by 37.5 units",
+      "quarter is 4.0, pulling the forecast down by 18.4 units"
+    ],
+    "quantity_reasons": [
+      "Expected demand over the 8-day lead time plus the review period is 597 units.",
+      "A safety buffer of 1,516 units covers forecast error at the target service level.",
+      "414 units are already available or on order, which reduces the requirement.",
+      "Rounding up to whole packs of 6 adds 4.0 units."
+    ],
+    "decomposition": {
+      "expected demand over lead time": 597.4,
+      "safety stock": 1516.09,
+      "less: stock already available / on order": -413.53,
+      "clip at zero (never order negative)": 0.0,
+      "supplier minimum order quantity": 0.0,
+      "pack-size rounding": 4.04,
+      "supplier capacity cap": 0.0
+    },
+    "decomposition_total": 1704,
+    "reconciles": true,
+    "actual_7d_demand": 68.0,
+    "actual_reorder_label": 0
+  },
+  {
+    "sku": "15056BL",
+    "description": "EDWARDIAN PARASOL BLACK",
+    "date": "2011-10-03 00:00:00",
+    "predicted_7d_demand": 135.5,
+    "current_stock": 87.7,
+    "lead_time_days": 6,
+    "stockout_risk": "MEDIUM",
+    "reorder_probability": 0.5288,
+    "reorder": true,
+    "recommended_qty": 480,
+    "order_value": 1394.88,
+    "days_of_cover_after": 28.6,
+    "demand_reasons": [
+      "rolling std 14 is 11.2, pushing the forecast up by 68.3 units",
+      "demand volatility over the last 7 days is 14.6, pushing the forecast up by 38.0 units",
+      "month of the year is 10.0, pushing the forecast up by 17.8 units",
+      "average daily demand over the last 28 days is 11.0, pulling the forecast down by 91.7 units",
+      "average daily demand over the last 7 days is 12.4, pulling the forecast down by 45.6 units"
+    ],
+    "quantity_reasons": [
+      "Expected demand over the 6-day lead time plus the review period is 252 units.",
+      "A safety buffer of 304 units covers forecast error at the target service level.",
+      "87.7 units are already available or on order, which reduces the requirement.",
+      "Rounding up to whole packs of 24 adds 12.3 units."
+    ],
+    "decomposition": {
+      "expected demand over lead time": 251.7,
+      "safety stock": 303.68,
+      "less: stock already available / on order": -87.66,
+      "clip at zero (never order negative)": 0.0,
+      "supplier minimum order quantity": 0.0,
+      "pack-size rounding": 12.27,
+      "supplier capacity cap": 0.0
+    },
+    "decomposition_total": 480,
+    "reconciles": true,
+    "actual_7d_demand": 196.0,
+    "actual_reorder_label": 1
+  },
+  {
+    "sku": "15056BL",
+    "description": "EDWARDIAN PARASOL BLACK",
+    "date": "2011-10-04 00:00:00",
+    "predicted_7d_demand": 131.5,
+    "current_stock": 87.7,
+    "lead_time_days": 6,
+    "stockout_risk": "MEDIUM",
+    "reorder_probability": 0.5004,
+    "reorder": true,
+    "recommended_qty": 456,
+    "order_value": 1325.14,
+    "days_of_cover_after": 27.3,
+    "demand_reasons": [
+      "rolling std 14 is 11.3, pushing the forecast up by 68.0 units",
+      "demand volatility over the last 7 days is 14.6, pushing the forecast up by 38.0 units",
+      "month of the year is 10.0, pushing the forecast up by 17.8 units",
+      "average daily demand over the last 28 days is 11.0, pulling the forecast down by 92.0 units",
+      "average daily demand over the last 7 days is 12.4, pulling the forecast down by 45.6 units"
+    ],
+    "quantity_reasons": [
+      "Expected demand over the 6-day lead time plus the review period is 244 units.",
+      "A safety buffer of 299 units covers forecast error at the target service level.",
+      "87.7 units are already available or on order, which reduces the requirement.",
+      "Rounding up to whole packs of 24 adds 0.302 units."
+    ],
+    "decomposition": {
+      "expected demand over lead time": 244.25,
+      "safety stock": 299.11,
+      "less: stock already available / on order": -87.66,
+      "clip at zero (never order negative)": 0.0,
+      "supplier minimum order quantity": 0.0,
+      "pack-size rounding": 0.3,
+      "supplier capacity cap": 0.0
+    },
+    "decomposition_total": 456,
+    "reconciles": true,
+    "actual_7d_demand": 196.0,
+    "actual_reorder_label": 1
+  }
+]

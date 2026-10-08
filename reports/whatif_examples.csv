@@ -1,0 +1,55 @@
+scenario,lead_time_days,inventory_position,expected_demand,safety_stock,moq,recommended_qty,change_vs_current,order_value,reorder,case,stock_code
+Current situation,8,347.2,1042.1,675.0,12,1380,0,1065.22,True,1,20727
+Lead time halved (8 -> 4 days),4,347.2,764.2,495.0,12,924,-456,713.24,True,1,20727
+Lead time doubled (8 -> 16 days),16,347.2,1597.9,1035.0,12,2292,912,1769.19,True,1,20727
+Stock fully depleted (0 units),8,0.0,1042.1,675.0,12,1728,348,1333.84,True,1,20727
+Stock = 50% of lead-time demand,8,521.1,1042.1,675.0,12,1200,-180,926.28,True,1,20727
+Stock = 150% of lead-time demand,8,1563.2,1042.1,675.0,12,156,-1224,120.42,True,1,20727
+No safety buffer (service level dropped),8,347.2,1042.1,0.0,12,696,-684,537.24,True,1,20727
+Demand surge +30%,8,347.2,1354.7,675.0,12,1692,312,1306.05,True,1,20727
+Supplier raises MOQ to 288,8,347.2,1042.1,675.0,288,1380,0,1065.22,True,1,20727
+Current situation,12,366.0,2.9,153.9,48,0,0,0.0,False,2,21258
+Lead time halved (12 -> 6 days),6,366.0,2.0,105.3,48,0,0,0.0,False,2,21258
+Lead time doubled (12 -> 24 days),24,366.0,4.7,251.1,48,0,0,0.0,False,2,21258
+Stock fully depleted (0 units),12,0.0,2.9,153.9,48,168,168,1060.72,True,2,21258
+Stock = 50% of lead-time demand,12,1.4,2.9,153.9,48,168,168,1060.72,True,2,21258
+Stock = 150% of lead-time demand,12,4.3,2.9,153.9,48,168,168,1060.72,True,2,21258
+No safety buffer (service level dropped),12,366.0,2.9,0.0,48,0,0,0.0,False,2,21258
+Demand surge +30%,12,366.0,3.7,153.9,48,0,0,0.0,False,2,21258
+Supplier raises MOQ to 288,12,366.0,2.9,153.9,288,0,0,0.0,False,2,21258
+Current situation,17,1398.0,1718.4,2793.1,12,3114,0,1365.49,True,3,20724
+Lead time halved (17 -> 8 days),8,1398.0,1074.0,1745.7,12,1422,-1692,623.55,True,3,20724
+Lead time doubled (17 -> 34 days),34,1398.0,2935.6,4771.6,12,6312,3198,2767.81,True,3,20724
+Stock fully depleted (0 units),17,0.0,1718.4,2793.1,12,4512,1398,1978.51,True,3,20724
+Stock = 50% of lead-time demand,17,859.2,1718.4,2793.1,12,3654,540,1602.28,True,3,20724
+Stock = 150% of lead-time demand,17,2577.6,1718.4,2793.1,12,1938,-1176,849.81,True,3,20724
+No safety buffer (service level dropped),17,1398.0,1718.4,0.0,12,324,-2790,142.07,True,3,20724
+Demand surge +30%,17,1398.0,2233.9,2793.1,12,3630,516,1591.76,True,3,20724
+Supplier raises MOQ to 288,17,1398.0,1718.4,2793.1,288,3114,0,1365.49,True,3,20724
+Current situation,8,413.5,597.4,1516.1,48,1704,0,650.42,True,4,15036
+Lead time halved (8 -> 4 days),4,413.5,438.1,1111.8,48,1140,-564,435.14,True,4,15036
+Lead time doubled (8 -> 16 days),16,413.5,916.0,2324.7,48,2832,1128,1080.97,True,4,15036
+Stock fully depleted (0 units),8,0.0,597.4,1516.1,48,2118,414,808.44,True,4,15036
+Stock = 50% of lead-time demand,8,298.7,597.4,1516.1,48,1818,114,693.93,True,4,15036
+Stock = 150% of lead-time demand,8,896.1,597.4,1516.1,48,1218,-486,464.91,True,4,15036
+No safety buffer (service level dropped),8,413.5,597.4,0.0,48,186,-1518,71.0,True,4,15036
+Demand surge +30%,8,413.5,776.6,1516.1,48,1884,180,719.12,True,4,15036
+Supplier raises MOQ to 288,8,413.5,597.4,1516.1,288,1704,0,650.42,True,4,15036
+Current situation,6,87.7,251.7,303.7,24,480,0,1394.88,True,5,15056BL
+Lead time halved (6 -> 3 days),3,87.7,193.6,233.6,24,360,-120,1046.16,True,5,15056BL
+Lead time doubled (6 -> 12 days),12,87.7,367.9,443.8,24,744,264,2162.06,True,5,15056BL
+Stock fully depleted (0 units),6,0.0,251.7,303.7,24,576,96,1673.86,True,5,15056BL
+Stock = 50% of lead-time demand,6,125.9,251.7,303.7,24,432,-48,1255.39,True,5,15056BL
+Stock = 150% of lead-time demand,6,377.6,251.7,303.7,24,192,-288,557.95,True,5,15056BL
+No safety buffer (service level dropped),6,87.7,251.7,0.0,24,168,-312,488.21,True,5,15056BL
+Demand surge +30%,6,87.7,327.2,303.7,24,552,72,1604.11,True,5,15056BL
+Supplier raises MOQ to 288,6,87.7,251.7,303.7,288,480,0,1394.88,True,5,15056BL
+Current situation,6,87.7,244.3,299.1,24,456,0,1325.14,True,6,15056BL
+Lead time halved (6 -> 3 days),3,87.7,187.9,230.1,24,336,-120,976.42,True,6,15056BL
+Lead time doubled (6 -> 12 days),12,87.7,357.0,437.2,24,720,264,2092.32,True,6,15056BL
+Stock fully depleted (0 units),6,0.0,244.3,299.1,24,552,96,1604.11,True,6,15056BL
+Stock = 50% of lead-time demand,6,122.1,244.3,299.1,24,432,-24,1255.39,True,6,15056BL
+Stock = 150% of lead-time demand,6,366.4,244.3,299.1,24,192,-264,557.95,True,6,15056BL
+No safety buffer (service level dropped),6,87.7,244.3,0.0,24,168,-288,488.21,True,6,15056BL
+Demand surge +30%,6,87.7,317.5,299.1,24,552,96,1604.11,True,6,15056BL
+Supplier raises MOQ to 288,6,87.7,244.3,299.1,288,456,0,1325.14,True,6,15056BL

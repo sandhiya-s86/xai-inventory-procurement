@@ -1,0 +1,33 @@
+# --- Data: never commit raw or derived datasets ---
+data/raw/
+data/interim/
+data/processed/
+data/forecasts/
+data/results/
+data/simulated/
+*.xlsx
+*.parquet
+*.zip
+
+# Trained models
+models/*.joblib
+models/*.pkl
+models/*.txt
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Keep directory placeholders
+!**/.gitkeep

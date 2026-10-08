@@ -1,0 +1,124 @@
+{
+  "daily_demand": {
+    "mean": 5725.132450331126,
+    "median": 4920.5,
+    "std": 3599.658810855151,
+    "min": 589.0,
+    "max": 31228.0,
+    "peak_date": "2010-12-07",
+    "n_days": 604
+  },
+  "seasonality": {
+    "peak_month": "2010-11-01",
+    "peak_month_units": 258366.0,
+    "trough_month": "2011-12-01",
+    "trough_month_units": 67127.0,
+    "peak_to_trough_ratio": 3.8489132539812596,
+    "mean_monthly_units_sep_nov": 197134.83333333334,
+    "mean_monthly_units_other": 119745.84210526316,
+    "q4_uplift_pct": 64.6277063716676
+  },
+  "demand_distribution": {
+    "mean": 28.62566225165563,
+    "median": 6.0,
+    "std": 94.29089813109374,
+    "variance": 8890.773470368296,
+    "skew": 24.56639750645348,
+    "kurtosis": 1416.1450258388354,
+    "min": 0.0,
+    "max": 9480.0,
+    "q25": 0.0,
+    "q50": 6.0,
+    "q75": 25.0,
+    "q90": 69.0,
+    "q95": 122.0,
+    "q99": 326.0,
+    "pct_zero_days": 31.733443708609272,
+    "mean_over_median_ratio": 4.770943708609272
+  },
+  "outliers": {
+    "iqr_q1": 0.0,
+    "iqr_q3": 25.0,
+    "iqr": 25.0,
+    "upper_fence": 62.5,
+    "n_above_fence": 13110,
+    "pct_above_fence": 10.852649006622517,
+    "max_single_sku_day": 9480.0
+  },
+  "concentration": {
+    "top_sku": "22423",
+    "top_sku_revenue": 344069.3,
+    "top_10_pct_of_revenue": 18.241635667135803,
+    "top_20pct_skus_share_of_revenue": 39.55706432575151,
+    "n_skus": 200
+  },
+  "trading_calendar": {
+    "calendar_days": 739,
+    "trading_days": 604,
+    "non_trading_days": 135,
+    "non_trading_by_weekday": {
+      "Mon": 11,
+      "Tue": 2,
+      "Wed": 2,
+      "Thu": 3,
+      "Fri": 7,
+      "Sat": 104,
+      "Sun": 6
+    },
+    "mean_demand_by_weekday": {
+      "Mon": 30.146010638297874,
+      "Tue": 32.643701923076925,
+      "Wed": 29.916923076923077,
+      "Thu": 36.93631067961165,
+      "Fri": 26.755050505050505,
+      "Sat": 7.415,
+      "Sun": 15.043080808080807
+    }
+  },
+  "correlation": {
+    "demand_vs_n_invoices": 0.37970650769210573,
+    "demand_vs_avg_price": -0.1323259341164149,
+    "demand_vs_revenue": 0.6384177383826198,
+    "demand_vs_returns": 0.08361112136294303,
+    "covariance_demand_invoices": 89.19294161764749
+  },
+  "intermittency": {
+    "overall_pct_zero_sku_days": 31.733443708609272,
+    "median_sku_zero_rate_pct": 28.14569536423841,
+    "min_sku_zero_rate_pct": 0.16556291390728478,
+    "max_sku_zero_rate_pct": 77.64900662251655,
+    "n_skus_above_50pct_zero": 38
+  },
+  "volatility": {
+    "mean_rolling_std_28": 2893.5878004791657,
+    "max_rolling_std_28": 8122.716722401503,
+    "max_rolling_std_date": "2011-01-12",
+    "coefficient_of_variation_daily": 0.6287468180141328
+  },
+  "target_quantiles": {
+    "mean": 199.5466806020067,
+    "P50": 90.0,
+    "P75": 248.0,
+    "P90": 497.0,
+    "P95": 735.0,
+    "P95_over_P50": 8.166666666666666
+  },
+  "figures": {
+    "01_daily_total_demand": "reports/figures/eda_01_daily_total_demand.png",
+    "02_weekly_trend": "reports/figures/eda_02_weekly_trend.png",
+    "03_monthly_trend": "reports/figures/eda_03_monthly_trend.png",
+    "04_demand_distribution": "reports/figures/eda_04_demand_distribution.png",
+    "05_outliers_boxplot": "reports/figures/eda_05_outliers_boxplot.png",
+    "06_top_skus_revenue": "reports/figures/eda_06_top_skus_revenue.png",
+    "07_pareto_revenue": "reports/figures/eda_07_pareto_revenue.png",
+    "08_day_of_week": "reports/figures/eda_08_day_of_week.png",
+    "09_correlation_heatmap": "reports/figures/eda_09_correlation_heatmap.png",
+    "10_invoices_vs_demand": "reports/figures/eda_10_invoices_vs_demand.png",
+    "11_price_vs_demand": "reports/figures/eda_11_price_vs_demand.png",
+    "12_zero_demand": "reports/figures/eda_12_zero_demand.png",
+    "13_rolling_mean": "reports/figures/eda_13_rolling_mean.png",
+    "14_rolling_std": "reports/figures/eda_14_rolling_std.png",
+    "15_target_quantiles": "reports/figures/eda_15_target_quantiles.png",
+    "16_seasonal_decomposition": "reports/figures/eda_16_seasonal_decomposition.png"
+  }
+}

@@ -1,0 +1,6 @@
+policy,policy_label,forecast_source,safety_stock_method,supplier_constraints_applied,total_demand_units,unmet_demand_units,fill_rate,service_level_days,stockout_days,n_orders,holding_cost,purchase_cost,shortage_cost,ordering_cost,total_cost,mean_inventory_units,inventory_turnover,cost_vs_P0_pct,fill_rate_vs_P0_pp
+P0,"P0: Moving average, no safety stock",rolling_mean_7,none,False,617604.0,123946.1,0.799311,0.878543,2027,1183,7898.86,662846.19,386249.5,29575.0,1086569.55,473.64,1303.94,0.0,0.0
+P1,P1: Classical reorder point (z*sigma*sqrt(L)),rolling_mean_28,classical,True,617604.0,69570.1,0.887355,0.942118,966,1670,9504.21,771388.91,232203.77,41750.0,1054846.9,586.28,1053.437,-2.92,8.804
+P2,"P2: ML point forecast, no safety stock",ml_point,none,True,617604.0,128340.0,0.792197,0.905926,1570,1788,5636.97,659307.42,368160.5,44700.0,1077804.89,318.09,1941.591,-0.81,-0.711
+P3,P3: ML forecast + classical safety stock,ml_point,classical,True,617604.0,63862.3,0.896597,0.954042,767,1678,9885.89,816461.59,201177.91,41950.0,1069475.38,589.69,1047.331,-1.57,9.729
+P4,P4: ML forecast + quantile safety stock + constraints,ml_point,quantile,True,617604.0,37774.8,0.938837,0.97028,496,1667,13813.4,955950.35,125061.54,41675.0,1136500.29,792.82,778.997,4.6,13.953

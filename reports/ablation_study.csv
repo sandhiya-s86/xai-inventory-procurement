@@ -1,0 +1,6 @@
+stage,policy,fill_rate,stockout_days,mean_inventory_units,total_cost,cost_change_vs_previous_stage,cost_vs_P0_pct
+A: historical average only,P0,0.799311,2027,473.64,1086569.55,,0.0
+B: + classical safety stock,P1,0.887355,966,586.28,1054846.9,-31722.65,-2.92
+C: ML point forecast,P2,0.792197,1570,318.09,1077804.89,22957.99,-0.81
+D: ML forecast + safety stock,P3,0.896597,767,589.69,1069475.38,-8329.51,-1.57
+E: ML forecast + quantile buffer + supplier constraints,P4,0.938837,496,792.82,1136500.29,67024.91,4.6

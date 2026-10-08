@@ -1,0 +1,18 @@
+{
+  "best_regression_model": "Ridge Regression (L2)",
+  "best_regression_key": "ridge_regression",
+  "best_regression_test_RMSE": 288.5328872983307,
+  "best_regression_test_MAE": 136.3555020895718,
+  "best_regression_test_R2": 0.5097382314471436,
+  "best_classifier_model": "LightGBM Classifier",
+  "best_classifier_key": "lightgbm_clf",
+  "best_classifier_test_f1": 0.7779981965734897,
+  "best_classifier_test_recall": 0.8155009451795842,
+  "best_classifier_test_precision": 0.7437931034482759,
+  "best_classifier_test_roc_auc": 0.9205409190041046,
+  "n_regression_features": 43,
+  "n_classification_features": 52,
+  "test_rows": 16689,
+  "test_date_min": "2011-08-24",
+  "test_date_max": "2011-12-02"
+}
