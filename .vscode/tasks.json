@@ -1,0 +1,22 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "1. Full pipeline (18 stages)", "type": "shell",
+      "command": ".venv\Scripts\python scripts\run_pipeline.py",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": [] },
+    { "label": "2. Run tests", "type": "shell",
+      "command": ".venv\Scripts\python -m pytest",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": [] },
+    { "label": "3. Launch dashboard", "type": "shell",
+      "command": ".venv\Scripts\streamlit run dashboard\app.py",
+      "isBackground": true, "problemMatcher": [] },
+    { "label": "4. Completeness check", "type": "shell",
+      "command": ".venv\Scripts\python scripts\check_pbl1_completeness.py",
+      "problemMatcher": [] },
+    { "label": "5. Rebuild PowerPoint", "type": "shell",
+      "command": ".venv\Scripts\python scripts\build_presentation.py",
+      "problemMatcher": [] }
+  ]
+}

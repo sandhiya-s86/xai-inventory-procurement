@@ -26,8 +26,15 @@ __pycache__/
 # --- OS / editor ---
 .DS_Store
 Thumbs.db
-.vscode/
 .idea/
+
+# VS Code: ignore personal state, but DO track the shared workspace config
+# (interpreter path, pytest discovery, run tasks) so the project opens and
+# runs correctly for anyone who clones it.
+.vscode/*
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # Keep directory placeholders
 !**/.gitkeep

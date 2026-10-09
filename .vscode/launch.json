@@ -1,0 +1,26 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run FULL pipeline (18 stages)",
+      "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/scripts/run_pipeline.py",
+      "console": "integratedTerminal", "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Prepare data", "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/scripts/prepare_data.py",
+      "console": "integratedTerminal", "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Train models (all stages)", "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/scripts/train_models.py",
+      "console": "integratedTerminal", "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Check PBL-1 completeness", "type": "debugpy", "request": "launch",
+      "program": "${workspaceFolder}/scripts/check_pbl1_completeness.py",
+      "console": "integratedTerminal", "cwd": "${workspaceFolder}"
+    }
+  ]
+}
