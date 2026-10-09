@@ -5,6 +5,19 @@
 An end-to-end system that turns 1,067,371 real retail transactions into
 auditable purchase recommendations — and explains every one of them.
 
+**Team**
+| Name | Register Number |
+|---|---|
+| Sandhiya S | RA2411003010045 |
+| Nishanth Kannan | RA2411003010051 |
+| Netti Nithin Chakravarthy | RA2411003010033 |
+
+**Repository:** <https://github.com/sandhiya-s86/xai-inventory-procurement>
+· `main` = original proposal · `pbl1-implementation` = the built system (default)
+
+**Presentation:** [`paper/PBL1_Presentation.pptx`](paper/PBL1_Presentation.pptx) — 15 slides with speaker notes
+
+
 > The original research proposal this repository started from is preserved at
 > [`docs/00-original-proposal-readme.md`](docs/00-original-proposal-readme.md).
 > What was implemented and what was deliberately deferred is recorded in
