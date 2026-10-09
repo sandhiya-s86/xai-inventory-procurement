@@ -65,6 +65,27 @@ def json_key(rel: str, key: str) -> tuple[bool, str]:
     return key in data, f"{rel}[{key}] = {data.get(key, 'ABSENT')}"
 
 
+def pptx_is_valid(rel: str, min_slides: int) -> tuple[bool, str]:
+    """The deck must open, have enough slides, and carry speaker notes."""
+    p = ROOT / rel
+    if not p.exists():
+        return False, f"MISSING: {rel}"
+    try:
+        from pptx import Presentation
+    except ImportError:
+        return False, "python-pptx not installed"
+    prs = Presentation(str(p))
+    n = len(prs.slides)
+    with_notes = sum(
+        1 for s in prs.slides if s.notes_slide.notes_text_frame.text.strip()
+    )
+    if n < min_slides:
+        return False, f"{rel}: only {n} slides (need >= {min_slides})"
+    if with_notes < n:
+        return False, f"{rel}: {with_notes}/{n} slides have speaker notes"
+    return True, f"{rel}: {n} slides, all with speaker notes ({p.stat().st_size/1024:.0f} KB)"
+
+
 def all_cases_reconcile() -> tuple[bool, str]:
     p = REPORTS / "generated" / "case_studies.json"
     if not p.exists():
@@ -191,6 +212,8 @@ CHECKS: list[tuple[str, str, callable]] = [
      lambda: exists("paper/pbl1_report.md")),
     ("12. Presentation", "Slide deck outline with speaking script",
      lambda: exists("docs/pbl1_presentation.md")),
+    ("12. Presentation", "PowerPoint deck (.pptx)",
+     lambda: pptx_is_valid("paper/PBL1_Presentation.pptx", 14)),
     ("12. Presentation", "Viva question bank",
      lambda: exists("docs/viva_questions.md")),
     ("12. Presentation", "Streamlit dashboard",
