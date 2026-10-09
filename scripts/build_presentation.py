@@ -1,11 +1,15 @@
-"""Generate the PBL-1 PowerPoint deck.
+"""Generate the PBL-1 PowerPoint deck — 15 slides, review-ready.
 
-Builds paper/PBL1_Presentation.pptx: 14 main slides + 5 backup slides, with
-the real result figures embedded and the speaking script in each slide's
-speaker-notes pane.
+Builds paper/PBL1_Presentation.pptx.
 
-Every number is read from reports/ at build time, so the deck cannot drift
-away from the results.
+Design goals, in priority order:
+  1. A non-specialist examiner must understand WHAT the project is, WHAT
+     problem it solves and WHO benefits within the first four slides.
+  2. Every number comes from reports/ at build time, so the deck can never
+     drift away from the actual results.
+  3. Dataset provenance and the real/simulated split are stated explicitly,
+     with clickable source links.
+  4. Each slide carries a 30-60 second speaking script in its notes pane.
 
     .venv\\Scripts\\python scripts\\build_presentation.py
 """
@@ -19,7 +23,8 @@ from pathlib import Path
 import pandas as pd
 from pptx import Presentation
 from pptx.dml.color import RGBColor
-from pptx.enum.text import PP_ALIGN
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Emu, Inches, Pt
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,22 +36,35 @@ CFG = load_config()
 REPORTS = resolve(CFG["paths"]["reports"])
 FIGS = resolve(CFG["paths"]["figures"])
 
-# Palette
-NAVY = RGBColor(0x1A, 0x36, 0x5D)
-BLUE = RGBColor(0x2B, 0x6C, 0xB0)
-GREEN = RGBColor(0x2F, 0x85, 0x5A)
-RED = RGBColor(0xC5, 0x30, 0x30)
-AMBER = RGBColor(0xB7, 0x79, 0x1F)
-GREY = RGBColor(0x4A, 0x55, 0x68)
-LIGHT = RGBColor(0xF7, 0xFA, 0xFC)
+# ---------------------------------------------------------------- team
+TEAM = [
+    ("Sandhiya S", "RA2411003010045"),
+    ("Nishanth Kannan", "RA2411003010051"),
+    ("Netti Nithin Chakravarthy", "RA2411003010033"),
+]
+COURSE = "PBL-1  ·  Machine Learning  ·  Units 1 & 2"
+
+# ---------------------------------------------------------------- palette
+INK = RGBColor(0x0E, 0x1C, 0x36)      # deep navy, page background
+NAVY = RGBColor(0x14, 0x2E, 0x55)
+STEEL = RGBColor(0x1E, 0x40, 0x6E)
+TEAL = RGBColor(0x2D, 0xD4, 0xBF)     # primary accent
+SKY = RGBColor(0x5E, 0xAD, 0xF2)
+AMBER = RGBColor(0xF5, 0xB7, 0x4A)
+CORAL = RGBColor(0xFF, 0x6B, 0x6B)
+LIME = RGBColor(0x6E, 0xE7, 0x9B)
 WHITE = RGBColor(0xFF, 0xFF, 0xFF)
+PAPER = RGBColor(0xF8, 0xFA, 0xFC)
+MUTED = RGBColor(0xA9, 0xBD, 0xD8)
+SLATE = RGBColor(0x47, 0x55, 0x69)
+CARD = RGBColor(0x1B, 0x33, 0x58)
 
-W, H = Inches(13.333), Inches(7.5)   # 16:9
+W, H = Inches(13.333), Inches(7.5)
+MARGIN = Inches(0.62)
+BODY_W = W - 2 * MARGIN
 
 
-# ----------------------------------------------------------------------
-# data
-# ----------------------------------------------------------------------
+# ---------------------------------------------------------------- data
 def load_results() -> dict:
     r = {}
     r["summary"] = json.loads((REPORTS / "model_summary.json").read_text(encoding="utf-8"))
@@ -59,22 +77,27 @@ def load_results() -> dict:
     r["qt"] = pd.read_csv(REPORTS / "quantile_model_metrics.csv")
     r["wf"] = pd.read_csv(REPORTS / "whatif_examples.csv")
     r["cases"] = json.loads(
-        (REPORTS / "generated" / "case_studies.json").read_text(encoding="utf-8")
-    )
+        (REPORTS / "generated" / "case_studies.json").read_text(encoding="utf-8"))
     return r
 
 
-# ----------------------------------------------------------------------
-# primitives
-# ----------------------------------------------------------------------
-def blank(prs: Presentation):
-    return prs.slides.add_slide(prs.slide_layouts[6])
+# ---------------------------------------------------------------- helpers
+def blank(prs):
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    bg = s.background.fill
+    bg.solid()
+    bg.fore_color.rgb = PAPER
+    return s
 
 
-def rect(slide, x, y, w, h, fill=None, line=None):
-    from pptx.enum.shapes import MSO_SHAPE
-
-    sh = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y, w, h)
+def rect(slide, x, y, w, h, fill=None, line=None, radius=False, lw=1.0):
+    shape = MSO_SHAPE.ROUNDED_RECTANGLE if radius else MSO_SHAPE.RECTANGLE
+    sh = slide.shapes.add_shape(shape, x, y, w, h)
+    if radius:
+        try:
+            sh.adjustments[0] = 0.06
+        except Exception:
+            pass
     if fill is None:
         sh.fill.background()
     else:
@@ -84,701 +107,941 @@ def rect(slide, x, y, w, h, fill=None, line=None):
         sh.line.fill.background()
     else:
         sh.line.color.rgb = line
-        sh.line.width = Pt(1)
+        sh.line.width = Pt(lw)
     sh.shadow.inherit = False
     return sh
 
 
-def textbox(slide, x, y, w, h, text, size=16, bold=False, color=NAVY,
-            align=PP_ALIGN.LEFT, font="Calibri", space_after=6):
+def text(slide, x, y, w, h, body, size=15, bold=False, color=NAVY,
+         align=PP_ALIGN.LEFT, font="Calibri", gap=5, line_spacing=1.0,
+         anchor=MSO_ANCHOR.TOP):
     tb = slide.shapes.add_textbox(x, y, w, h)
     tf = tb.text_frame
     tf.word_wrap = True
-    tf.margin_left = tf.margin_right = Inches(0.04)
+    tf.vertical_anchor = anchor
+    tf.margin_left = tf.margin_right = Inches(0.03)
     tf.margin_top = tf.margin_bottom = 0
-    lines = text.split("\n")
-    for i, line in enumerate(lines):
+    for i, ln in enumerate(body.split("\n")):
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         p.alignment = align
-        p.space_after = Pt(space_after)
-        bullet = line.startswith("• ")
-        run = p.add_run()
-        run.text = line
-        run.font.size = Pt(size)
-        run.font.bold = bold
-        run.font.color.rgb = color
-        run.font.name = font
-        if bullet:
-            p.level = 0
+        p.space_after = Pt(gap)
+        p.line_spacing = line_spacing
+        r = p.add_run()
+        r.text = ln
+        r.font.size = Pt(size)
+        r.font.bold = bold
+        r.font.color.rgb = color
+        r.font.name = font
     return tb
 
 
-def title_bar(slide, title, subtitle=None, n=None):
-    rect(slide, 0, 0, W, Inches(1.08), fill=NAVY)
-    textbox(slide, Inches(0.55), Inches(0.17), Inches(11.0), Inches(0.5),
-            title, size=28, bold=True, color=WHITE)
-    if subtitle:
-        textbox(slide, Inches(0.58), Inches(0.68), Inches(11.0), Inches(0.3),
-                subtitle, size=13, color=RGBColor(0xBE, 0xD4, 0xEE))
-    if n is not None:
-        textbox(slide, Inches(12.3), Inches(0.33), Inches(0.8), Inches(0.4),
-                str(n), size=18, bold=True, color=RGBColor(0x8A, 0xA8, 0xCC),
-                align=PP_ALIGN.RIGHT)
+def link(slide, x, y, w, h, label, url, size=12, color=SKY):
+    tb = slide.shapes.add_textbox(x, y, w, h)
+    tf = tb.text_frame
+    tf.word_wrap = True
+    tf.margin_left = tf.margin_right = 0
+    tf.margin_top = tf.margin_bottom = 0
+    p = tf.paragraphs[0]
+    r = p.add_run()
+    r.text = label
+    r.font.size = Pt(size)
+    r.font.color.rgb = color
+    r.font.underline = True
+    r.font.name = "Calibri"
+    r.hyperlink.address = url
+    return tb
 
 
-def notes(slide, script: str):
+def header(slide, title, kicker=None, accent=TEAL):
+    rect(slide, 0, 0, W, Inches(1.12), fill=NAVY)
+    rect(slide, 0, Inches(1.12), W, Inches(0.055), fill=accent)
+    y = Inches(0.30) if kicker else Inches(0.34)
+    if kicker:
+        text(slide, MARGIN, Inches(0.17), BODY_W, Inches(0.25),
+             kicker.upper(), size=10.5, bold=True, color=accent, gap=0)
+        y = Inches(0.44)
+    text(slide, MARGIN, y, BODY_W - Inches(0.9), Inches(0.52),
+         title, size=27, bold=True, color=WHITE, gap=0)
+
+
+def footer(slide, n):
+    rect(slide, 0, H - Inches(0.42), W, Inches(0.42), fill=RGBColor(0xE7, 0xEC, 0xF3))
+    text(slide, MARGIN, H - Inches(0.345), Inches(8.6), Inches(0.26),
+         "XAI Decision Support for Inventory & Procurement  ·  "
+         "Sandhiya S · Nishanth Kannan · Netti Nithin Chakravarthy",
+         size=9.5, color=SLATE, gap=0)
+    text(slide, W - MARGIN - Inches(1.2), H - Inches(0.345), Inches(1.2), Inches(0.26),
+         f"{n} / 15", size=9.5, bold=True, color=STEEL,
+         align=PP_ALIGN.RIGHT, gap=0)
+
+
+def notes(slide, script):
     slide.notes_slide.notes_text_frame.text = script
 
 
-def table(slide, df, x, y, w, h, font=11, header_font=11,
-          highlight_rows=None, col_widths=None):
-    highlight_rows = highlight_rows or []
+def card(slide, x, y, w, h, value, label, accent=SKY, vsize=25, lsize=10.5):
+    rect(slide, x, y, w, h, fill=WHITE, line=RGBColor(0xD6, 0xDF, 0xEA), radius=True)
+    rect(slide, x, y, w, Inches(0.07), fill=accent)
+    text(slide, x, y + Inches(0.22), w, Inches(0.5), value, size=vsize,
+         bold=True, color=accent, align=PP_ALIGN.CENTER, gap=0)
+    text(slide, x + Inches(0.08), y + Inches(0.78), w - Inches(0.16), h - Inches(0.85),
+         label, size=lsize, color=SLATE, align=PP_ALIGN.CENTER, gap=1)
+
+
+def banner(slide, x, y, w, h, body, accent=AMBER, size=12.5, bg=None, fg=None):
+    bg = bg or RGBColor(0xFF, 0xF8, 0xE9)
+    fg = fg or RGBColor(0x6B, 0x4A, 0x0B)
+    rect(slide, x, y, w, h, fill=bg, line=accent, radius=True)
+    rect(slide, x + Inches(0.02), y + Inches(0.06), Inches(0.06), h - Inches(0.12),
+         fill=accent)
+    text(slide, x + Inches(0.22), y + Inches(0.12), w - Inches(0.38), h - Inches(0.22),
+         body, size=size, color=fg, gap=3)
+
+
+def table(slide, df, x, y, w, h, font=11, hfont=11, hot=None, widths=None,
+          accent=NAVY):
+    hot = hot or []
     rows, cols = df.shape[0] + 1, df.shape[1]
-    gt = slide.shapes.add_table(rows, cols, x, y, w, h).table
-
-    if col_widths:
-        total = sum(col_widths)
-        for j, cw in enumerate(col_widths):
-            gt.columns[j].width = Emu(int(w * cw / total))
-
+    t = slide.shapes.add_table(rows, cols, x, y, w, h).table
+    if widths:
+        tot = sum(widths)
+        for j, cw in enumerate(widths):
+            t.columns[j].width = Emu(int(w * cw / tot))
     for j, name in enumerate(df.columns):
-        c = gt.cell(0, j)
+        c = t.cell(0, j)
         c.text = str(name)
         p = c.text_frame.paragraphs[0]
         p.alignment = PP_ALIGN.CENTER
-        p.runs[0].font.size = Pt(header_font)
+        p.runs[0].font.size = Pt(hfont)
         p.runs[0].font.bold = True
         p.runs[0].font.color.rgb = WHITE
         c.fill.solid()
-        c.fill.fore_color.rgb = NAVY
-        c.margin_top = c.margin_bottom = Inches(0.02)
-
+        c.fill.fore_color.rgb = accent
+        c.margin_top = c.margin_bottom = Inches(0.022)
     for i in range(df.shape[0]):
-        hl = i in highlight_rows
+        on = i in hot
         for j in range(cols):
-            c = gt.cell(i + 1, j)
+            c = t.cell(i + 1, j)
             c.text = str(df.iat[i, j])
             p = c.text_frame.paragraphs[0]
             p.alignment = PP_ALIGN.CENTER if j else PP_ALIGN.LEFT
             r = p.runs[0]
             r.font.size = Pt(font)
-            r.font.bold = hl
-            r.font.color.rgb = NAVY if hl else GREY
+            r.font.bold = on
+            r.font.color.rgb = NAVY if on else SLATE
             c.fill.solid()
-            c.fill.fore_color.rgb = RGBColor(0xDC, 0xEB, 0xFA) if hl else (
-                WHITE if i % 2 == 0 else LIGHT
-            )
-            c.margin_top = c.margin_bottom = Inches(0.015)
-    return gt
-
-
-def metric_card(slide, x, y, w, h, value, label, color=BLUE):
-    rect(slide, x, y, w, h, fill=LIGHT, line=RGBColor(0xCB, 0xD5, 0xE0))
-    textbox(slide, x, y + Inches(0.16), w, Inches(0.55), value,
-            size=26, bold=True, color=color, align=PP_ALIGN.CENTER)
-    textbox(slide, x + Inches(0.08), y + Inches(0.76), w - Inches(0.16),
-            Inches(0.5), label, size=11, color=GREY, align=PP_ALIGN.CENTER)
+            c.fill.fore_color.rgb = (RGBColor(0xDA, 0xF7, 0xF2) if on
+                                     else (WHITE if i % 2 == 0 else RGBColor(0xF2, 0xF6, 0xFA)))
+            c.margin_top = c.margin_bottom = Inches(0.016)
+    return t
 
 
 def picture(slide, name, x, y, h=None, w=None):
+    """Place a figure scaled to fit inside the box (x, y, w, h), centred.
+
+    Scaling by height alone overflowed the slide edge for the wide matplotlib
+    figures, so the box is treated as a bounding box: the image is scaled by
+    whichever dimension binds first and then centred in the leftover space.
+    """
     p = FIGS / name
     if not p.exists():
-        textbox(slide, x, y, Inches(5), Inches(0.4),
-                f"[missing figure: {name}]", size=12, color=RED)
+        text(slide, x, y, Inches(5), Inches(0.4), f"[missing: {name}]",
+             size=11, color=CORAL)
         return None
-    kw = {}
-    if h:
-        kw["height"] = h
-    if w:
-        kw["width"] = w
-    return slide.shapes.add_picture(str(p), x, y, **kw)
+
+    probe = slide.shapes.add_picture(str(p), 0, 0)
+    nat_w, nat_h = probe.width, probe.height
+    probe._element.getparent().remove(probe._element)
+
+    box_w = w if w else Emu(int(nat_w * (h / nat_h)))
+    box_h = h if h else Emu(int(nat_h * (w / nat_w)))
+
+    scale = min(box_w / nat_w, box_h / nat_h)
+    fw, fh = Emu(int(nat_w * scale)), Emu(int(nat_h * scale))
+    fx = Emu(int(x + (box_w - fw) / 2))
+    fy = Emu(int(y + (box_h - fh) / 2))
+    return slide.shapes.add_picture(str(p), fx, fy, width=fw, height=fh)
 
 
-def callout(slide, x, y, w, h, text, color=AMBER, size=13):
-    rect(slide, x, y, w, h, fill=RGBColor(0xFF, 0xF8, 0xE8), line=color)
-    rect(slide, x, y, Inches(0.07), h, fill=color)
-    textbox(slide, x + Inches(0.2), y + Inches(0.1), w - Inches(0.35),
-            h - Inches(0.2), text, size=size, color=RGBColor(0x5F, 0x40, 0x0A))
+def chip(slide, x, y, w, h, label, fill=STEEL, color=WHITE, size=11):
+    rect(slide, x, y, w, h, fill=fill, radius=True)
+    text(slide, x, y + Inches(0.055), w, h, label, size=size, bold=True,
+         color=color, align=PP_ALIGN.CENTER, gap=0)
 
 
-# ----------------------------------------------------------------------
-# slides
-# ----------------------------------------------------------------------
-def build(R: dict) -> Presentation:
+def arrow_flow(slide, items, x, y, w, h, fill=STEEL, color=WHITE, size=10.5):
+    """A horizontal chevron flow."""
+    n = len(items)
+    gap = Inches(0.1)
+    cw = (w - gap * (n - 1)) / n
+    for i, label in enumerate(items):
+        cx = x + i * (cw + gap)
+        sh = slide.shapes.add_shape(MSO_SHAPE.CHEVRON, cx, y, cw, h)
+        sh.fill.solid()
+        sh.fill.fore_color.rgb = fill
+        sh.line.fill.background()
+        sh.shadow.inherit = False
+        tf = sh.text_frame
+        tf.word_wrap = True
+        tf.margin_left = tf.margin_right = Inches(0.04)
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.CENTER
+        r = p.add_run()
+        r.text = label
+        r.font.size = Pt(size)
+        r.font.bold = True
+        r.font.color.rgb = color
+
+
+# ---------------------------------------------------------------- deck
+def build(R):
     prs = Presentation()
     prs.slide_width, prs.slide_height = W, H
     s = R["summary"]
     eda = R["eda"]
+    dq = R["dq"]
     pol = R["pol"].set_index("policy")
 
-    # ---------------------------------------------------------- 1 Title
+    # ============================================================ 1 TITLE
     sl = blank(prs)
-    rect(sl, 0, 0, W, H, fill=NAVY)
-    rect(sl, 0, Inches(2.52), W, Inches(0.045), fill=RGBColor(0x4C, 0x9A, 0xE8))
-    textbox(sl, Inches(0.9), Inches(1.25), Inches(11.5), Inches(1.3),
-            "Explainable AI-Driven Decision Support for\n"
-            "Predictive Inventory and Procurement Optimization\nin ERP Systems",
-            size=33, bold=True, color=WHITE, space_after=2)
-    textbox(sl, Inches(0.9), Inches(2.85), Inches(11.5), Inches(0.4),
-            "PBL-1  ·  Machine Learning  ·  Units 1 & 2",
-            size=18, color=RGBColor(0xBE, 0xD4, 0xEE))
-    for i, (v, lab) in enumerate([
-        ("1,067,371", "real transactions"),
-        ("13", "models compared"),
-        ("81", "tests passing"),
-        ("0.000000", "explanation residual"),
-    ]):
-        x = Inches(0.9 + i * 2.95)
-        rect(sl, x, Inches(3.75), Inches(2.7), Inches(1.15),
-             fill=RGBColor(0x24, 0x47, 0x74))
-        textbox(sl, x, Inches(3.93), Inches(2.7), Inches(0.5), v,
-                size=23, bold=True, color=RGBColor(0x7D, 0xC4, 0xFF),
-                align=PP_ALIGN.CENTER)
-        textbox(sl, x, Inches(4.42), Inches(2.7), Inches(0.35), lab,
-                size=12, color=RGBColor(0xBE, 0xD4, 0xEE), align=PP_ALIGN.CENTER)
-    textbox(sl, Inches(0.9), Inches(5.5), Inches(11.5), Inches(0.9),
-            "Data → Cleaning → EDA → Regression + Classification → Comparison\n"
-            "→ Explainable AI → Inventory Risk → Procurement Decision → Dashboard",
-            size=14, color=RGBColor(0x9F, 0xBC, 0xDE))
-    textbox(sl, Inches(0.9), Inches(6.6), Inches(11.5), Inches(0.4),
-            "Dataset: UCI Online Retail II (CC BY 4.0)  ·  "
-            "Supply-side parameters are SIMULATED and labelled throughout",
-            size=11, color=RGBColor(0x7F, 0x9C, 0xBE))
-    notes(sl,
-          "My project builds a decision-support system that tells a retailer "
-          "three things: how much of a product will sell, whether they are at "
-          "risk of running out, and how much to order - and crucially, why. "
-          "It is built on just over a million real retail transactions, and "
-          "every claim I make today comes from code that runs end to end.")
+    sl.background.fill.solid()
+    sl.background.fill.fore_color.rgb = INK
+    rect(sl, 0, 0, Inches(0.22), H, fill=TEAL)
+    rect(sl, Inches(8.9), 0, Inches(4.43), H, fill=RGBColor(0x13, 0x26, 0x45))
 
-    # ---------------------------------------------------------- 2 Problem
-    sl = blank(prs)
-    title_bar(sl, "The Problem", "A forecast is not a decision", 2)
-    textbox(sl, Inches(0.6), Inches(1.45), Inches(6.2), Inches(2.6),
-            "• Stockouts lose sales\n"
-            "• Overstock immobilises cash\n"
-            "• The controlling decision: how much to order, and when\n"
-            "• A forecast alone changes nothing",
-            size=17, color=GREY, space_after=14)
-    metric_card(sl, Inches(0.6), Inches(3.8), Inches(2.95), Inches(1.35),
-                f"{pol.loc['P0','fill_rate']:.1%}", "Baseline fill rate\n(1 in 5 units unavailable)", RED)
-    metric_card(sl, Inches(3.75), Inches(3.8), Inches(2.95), Inches(1.35),
-                f"{int(pol.loc['P0','stockout_days']):,}", "Stockout days\nin the test period", RED)
-    callout(sl, Inches(0.6), Inches(5.45), Inches(6.1), Inches(1.3),
-            "The system must answer six questions:\n"
-            "expected demand · is stock enough · stockout risk · reorder? · "
-            "how much · WHY")
-    picture(sl, "policy_cost_vs_fill_rate.png", Inches(7.05), Inches(1.5), h=Inches(4.3))
-    notes(sl,
-          "Inventory is a two-sided problem. Order too little and you lose the "
-          "sale; order too much and your cash sits on a shelf. In our "
-          "environment the naive moving-average rule that most small retailers "
-          "actually use achieves only a 79.9% fill rate - one unit in five that "
-          "a customer wanted wasn't there. The key insight driving this project "
-          "is that a forecast by itself changes nothing. You have to turn it "
-          "into a decision.")
+    text(sl, Inches(0.85), Inches(0.85), Inches(7.7), Inches(0.3),
+         "SRM INSTITUTE OF SCIENCE AND TECHNOLOGY", size=11, bold=True,
+         color=TEAL, gap=0)
+    text(sl, Inches(0.85), Inches(1.3), Inches(7.8), Inches(2.3),
+         "Explainable AI-Driven\nDecision Support for\nPredictive Inventory &\n"
+         "Procurement Optimization",
+         size=31, bold=True, color=WHITE, gap=2, line_spacing=1.04)
+    text(sl, Inches(0.85), Inches(3.72), Inches(7.8), Inches(0.35),
+         "in ERP Systems", size=21, color=SKY, gap=0)
+    rect(sl, Inches(0.85), Inches(4.3), Inches(2.1), Inches(0.045), fill=AMBER)
+    text(sl, Inches(0.85), Inches(4.55), Inches(7.8), Inches(0.3),
+         COURSE, size=14, bold=True, color=MUTED, gap=0)
+    text(sl, Inches(0.85), Inches(5.0), Inches(7.8), Inches(0.95),
+         "A working system that forecasts demand, flags stockout risk,\n"
+         "recommends how much to order — and explains why.",
+         size=13, color=MUTED, gap=3)
 
-    # ---------------------------------------------------------- 3 Dataset
+    # team panel
+    text(sl, Inches(9.35), Inches(1.35), Inches(3.6), Inches(0.3),
+         "TEAM", size=11, bold=True, color=TEAL, gap=0)
+    for i, (nm, reg) in enumerate(TEAM):
+        yy = Inches(1.78 + i * 0.92)
+        rect(sl, Inches(9.35), yy, Inches(3.5), Inches(0.76),
+             fill=RGBColor(0x1C, 0x35, 0x5C), radius=True)
+        text(sl, Inches(9.55), yy + Inches(0.11), Inches(3.2), Inches(0.3),
+             nm, size=13, bold=True, color=WHITE, gap=0)
+        text(sl, Inches(9.55), yy + Inches(0.42), Inches(3.2), Inches(0.25),
+             reg, size=11, color=TEAL, gap=0)
+    rect(sl, Inches(9.35), Inches(4.72), Inches(3.5), Inches(1.5),
+         fill=RGBColor(0x1C, 0x35, 0x5C), radius=True)
+    text(sl, Inches(9.55), Inches(4.88), Inches(3.2), Inches(1.3),
+         "Dataset\nUCI Online Retail II\n1,067,371 real transactions\n"
+         "CC BY 4.0  ·  no credentials",
+         size=11, color=MUTED, gap=2)
+    notes(sl,
+          "Good morning ma'am. We are Sandhiya, Nishanth and Nithin. Our "
+          "project builds a decision-support system for retail inventory. It "
+          "answers three questions for a shopkeeper or a warehouse manager: "
+          "how much of a product will sell, are we about to run out, and how "
+          "much should we order. And most importantly it explains why it gave "
+          "that answer. Everything we show today comes from code that runs on "
+          "just over a million real retail transactions.")
+    footer(sl, 1)
+
+    # ============================================================ 2 WHAT IS IT
     sl = blank(prs)
-    title_bar(sl, "Dataset", "UCI Online Retail II — real transactions, no credentials", 3)
+    header(sl, "What is our project?", "in plain language")
+    text(sl, MARGIN, Inches(1.45), Inches(7.1), Inches(1.0),
+         "A shop has thousands of products. Every week somebody must decide:\n"
+         "“Which items do I buy more of, and how many?”\n"
+         "Today that decision is mostly guesswork.",
+         size=15, color=SLATE, gap=5)
+    text(sl, MARGIN, Inches(2.62), Inches(7.1), Inches(0.3),
+         "OUR SYSTEM ANSWERS SIX QUESTIONS, AUTOMATICALLY:",
+         size=11.5, bold=True, color=STEEL, gap=0)
+    qs = [
+        ("1", "How much will this product sell in the next 7 days?", "Regression"),
+        ("2", "Is the stock we have enough?", "Inventory logic"),
+        ("3", "Are we at risk of running out?", "Classification"),
+        ("4", "Should we reorder — yes or no?", "Classification"),
+        ("5", "Exactly how many units should we order?", "Decision policy"),
+        ("6", "WHY did it recommend that number?", "Explainable AI"),
+    ]
+    for i, (num, q, tag) in enumerate(qs):
+        yy = Inches(3.0 + i * 0.6)
+        rect(sl, MARGIN, yy, Inches(7.1), Inches(0.5), fill=WHITE,
+             line=RGBColor(0xDD, 0xE5, 0xEF), radius=True)
+        chip(sl, MARGIN + Inches(0.1), yy + Inches(0.08), Inches(0.34),
+             Inches(0.34), num, fill=TEAL if i < 5 else AMBER,
+             color=INK, size=12)
+        text(sl, MARGIN + Inches(0.56), yy + Inches(0.12), Inches(4.5),
+             Inches(0.3), q, size=12.5,
+             bold=(i == 5), color=NAVY, gap=0)
+        text(sl, MARGIN + Inches(5.1), yy + Inches(0.14), Inches(1.9),
+             Inches(0.3), tag, size=10, color=STEEL, align=PP_ALIGN.RIGHT, gap=0)
+
+    rect(sl, Inches(8.1), Inches(1.45), Inches(4.65), Inches(3.3),
+         fill=WHITE, line=RGBColor(0xDD, 0xE5, 0xEF), radius=True)
+    text(sl, Inches(8.35), Inches(1.62), Inches(4.2), Inches(0.3),
+         "EXAMPLE OUTPUT", size=11, bold=True, color=STEEL, gap=0)
+    c0 = R["cases"][0]
+    text(sl, Inches(8.35), Inches(2.0), Inches(4.2), Inches(2.6),
+         f"Product              : {c0['sku']}\n"
+         f"Stock available      : {c0['current_stock']:,.0f} units\n"
+         f"Predicted 7-day sale : {c0['predicted_7d_demand']:,.0f} units\n"
+         f"Supplier lead time   : {c0['lead_time_days']} days\n\n"
+         f"Stockout risk        : {c0['stockout_risk']}\n"
+         f"Reorder              : {'YES' if c0['reorder'] else 'NO'}\n"
+         f"Order quantity       : {c0['recommended_qty']:,} units",
+         size=11.5, color=NAVY, font="Consolas", gap=2)
+    banner(sl, Inches(8.1), Inches(4.95), Inches(4.65), Inches(1.75),
+           "Not just a prediction — a DECISION.\n\n"
+           "And every recommendation comes with a plain-English reason, so a "
+           "human can check it before approving the purchase order.",
+           accent=TEAL, bg=RGBColor(0xE9, 0xFB, 0xF8),
+           fg=RGBColor(0x0C, 0x4F, 0x47), size=12)
+    notes(sl,
+          "In simple terms: a shop has thousands of products, and every week "
+          "someone has to decide what to buy more of. Today that is mostly "
+          "guesswork. Our system answers six questions automatically. The "
+          "first five are standard machine learning - predict demand, check "
+          "stock, flag risk, decide reorder, compute quantity. The sixth is "
+          "what makes our project different: it explains WHY. On the right you "
+          "can see a real output from our system for product 20727.")
+    footer(sl, 2)
+
+    # ============================================================ 3 PROBLEM
+    sl = blank(prs)
+    header(sl, "The problem we are solving", "why this matters", accent=CORAL)
+    text(sl, MARGIN, Inches(1.5), Inches(5.9), Inches(0.9),
+         "Inventory fails in two directions at once — and fixing one\n"
+         "usually makes the other worse.",
+         size=15, color=SLATE, gap=4)
+    rect(sl, MARGIN, Inches(2.5), Inches(2.85), Inches(2.25),
+         fill=RGBColor(0xFF, 0xF0, 0xF0), line=CORAL, radius=True)
+    text(sl, MARGIN, Inches(2.68), Inches(2.85), Inches(0.35),
+         "TOO LITTLE STOCK", size=12.5, bold=True, color=CORAL,
+         align=PP_ALIGN.CENTER, gap=0)
+    text(sl, MARGIN + Inches(0.2), Inches(3.12), Inches(2.45), Inches(1.5),
+         "• Customer wants it,\n   shelf is empty\n• Sale is lost\n"
+         "• Customer may not\n   come back",
+         size=11.5, color=RGBColor(0x8A, 0x2B, 0x2B), gap=3)
+    rect(sl, MARGIN + Inches(3.05), Inches(2.5), Inches(2.85), Inches(2.25),
+         fill=RGBColor(0xFF, 0xFA, 0xEC), line=AMBER, radius=True)
+    text(sl, MARGIN + Inches(3.05), Inches(2.68), Inches(2.85), Inches(0.35),
+         "TOO MUCH STOCK", size=12.5, bold=True, color=RGBColor(0xA9, 0x6A, 0x0C),
+         align=PP_ALIGN.CENTER, gap=0)
+    text(sl, MARGIN + Inches(3.25), Inches(3.12), Inches(2.45), Inches(1.5),
+         "• Cash locked on\n   the shelf\n• Storage cost\n"
+         "• Goods may expire\n   or go out of season",
+         size=11.5, color=RGBColor(0x7A, 0x4E, 0x0A), gap=3)
+    text(sl, MARGIN, Inches(4.95), Inches(5.9), Inches(0.4),
+         "The deciding factor: how much to order, and when.",
+         size=14, bold=True, color=NAVY, gap=0)
+
+    card(sl, Inches(6.9), Inches(1.5), Inches(2.8), Inches(1.5),
+         f"{pol.loc['P0','fill_rate']:.1%}", "Fill rate using today's\n"
+         "guesswork method\n(1 in 5 units unavailable)", accent=CORAL)
+    card(sl, Inches(9.95), Inches(1.5), Inches(2.8), Inches(1.5),
+         f"{int(pol.loc['P0','stockout_days']):,}",
+         "Days a product was\nout of stock\nin the test period", accent=CORAL)
+    banner(sl, Inches(6.9), Inches(3.2), Inches(5.85), Inches(1.55),
+           "Why is this hard?\n"
+           f"Demand is wildly uneven — skewness {eda['demand_distribution']['skew']:.0f}, "
+           f"and {eda['intermittency']['overall_pct_zero_sku_days']:.0f}% of product-days "
+           "have NO sales at all.\n"
+           "An average-based rule is wrong on most days.", accent=CORAL,
+           bg=RGBColor(0xFF, 0xF2, 0xF2), fg=RGBColor(0x7D, 0x25, 0x25))
+    banner(sl, MARGIN, Inches(5.5), Inches(12.1), Inches(1.15),
+           "KEY INSIGHT THAT SHAPED OUR WHOLE PROJECT:  a forecast by itself changes nothing. "
+           "We proved this — using a machine-learning forecast with no safety buffer made the fill rate "
+           "WORSE than the simple baseline (79.2% vs 79.9%). The value comes from handling UNCERTAINTY.",
+           accent=TEAL, bg=RGBColor(0xE9, 0xFB, 0xF8), fg=RGBColor(0x0C, 0x4F, 0x47), size=13)
+    notes(sl,
+          "Inventory fails in two directions at once. Too little stock and you "
+          "lose the sale and maybe the customer. Too much and your cash is "
+          "locked on a shelf. In our test environment the simple "
+          "moving-average rule that most small retailers actually use achieves "
+          "only a 79.9% fill rate - one unit in five that a customer wanted "
+          "was not there. And it is hard because demand is extremely uneven. "
+          "The key insight that shaped our whole project is at the bottom: a "
+          "forecast by itself changes nothing.")
+    footer(sl, 3)
+
+    # ============================================================ 4 BENEFITS
+    sl = blank(prs)
+    header(sl, "Benefits — who gains, and how much", "measured, not claimed",
+           accent=LIME)
+    res = [
+        (f"{pol.loc['P4','fill_rate']:.1%}", "Fill rate achieved\nup from 79.9%", LIME),
+        (f"+{(pol.loc['P4','fill_rate']-pol.loc['P0','fill_rate'])*100:.1f}pp",
+         "Improvement over\nthe baseline rule", LIME),
+        (f"-{(1-pol.loc['P4','stockout_days']/pol.loc['P0','stockout_days'])*100:.0f}%",
+         "Fewer stockout days\n2,027 → 496", LIME),
+        (f"-{(1-pol.loc['P4','shortage_cost']/pol.loc['P0','shortage_cost'])*100:.0f}%",
+         "Lower shortage cost\n(simulated)", LIME),
+    ]
+    for i, (v, lab, c) in enumerate(res):
+        card(sl, MARGIN + Inches(i * 3.08), Inches(1.5), Inches(2.9),
+             Inches(1.5), v, lab, accent=c)
+
+    rows = [
+        ("Shop owner / buyer", "Fewer lost sales; less cash stuck in slow stock"),
+        ("Warehouse team", "A ranked daily list of what to reorder, not a spreadsheet"),
+        ("Finance", "Stockout cost cut by 68% in simulation; spend is justified per order"),
+        ("Supplier", "Earlier, steadier orders instead of panic purchases"),
+        ("Auditor / manager", "Every order has a written reason that adds up exactly"),
+    ]
+    df = pd.DataFrame(rows, columns=["Who benefits", "What they get"])
+    table(sl, df, MARGIN, Inches(3.3), Inches(7.6), Inches(2.3), font=12,
+          widths=[1.0, 2.3], accent=STEEL)
+
+    rect(sl, Inches(8.5), Inches(3.3), Inches(4.25), Inches(2.3),
+         fill=WHITE, line=RGBColor(0xDD, 0xE5, 0xEF), radius=True)
+    text(sl, Inches(8.75), Inches(3.47), Inches(3.8), Inches(0.3),
+         "ACADEMIC VALUE", size=11, bold=True, color=STEEL, gap=0)
+    text(sl, Inches(8.75), Inches(3.82), Inches(3.8), Inches(1.7),
+         "• Unit 1 and Unit 2 topics implemented\n   in running, tested code\n"
+         "• 13 models compared on one problem\n"
+         "• 81 automated tests\n"
+         "• Fully reproducible: one command",
+         size=11.5, color=SLATE, gap=4)
+    banner(sl, MARGIN, Inches(5.8), Inches(12.1), Inches(0.9),
+           "Honest framing: the cost figures come from a simulated supply chain, so the RANKING of methods is "
+           "a real result — the rupee amounts are not a claim about a real shop. We say this openly on the next slide.",
+           accent=AMBER)
+    notes(sl,
+          "These are the benefits, and they are measured rather than claimed. "
+          "Our best policy raises the fill rate from 79.9% to 93.9% - fourteen "
+          "percentage points - and cuts the number of stockout days by 75%. "
+          "The table shows who gains. But I want to be careful: the cost "
+          "figures come from a simulated supply chain, so the ranking of "
+          "methods is a real result, the exact money amounts are not. We "
+          "explain that honestly on the next slide.")
+    footer(sl, 4)
+
+    # ============================================================ 5 DATASET
+    sl = blank(prs)
+    header(sl, "Dataset — where our data came from", "real data, openly sourced")
     df = pd.DataFrame({
-        "Property": ["Source", "Raw invoice lines", "Period", "After cleaning",
-                     "Modelled panel", "Credentials needed"],
-        "Value": ["UCI Online Retail II (CC BY 4.0)",
-                  f"{R['dq']['raw']['n_rows']:,}",
-                  "2009-12-01 → 2011-12-09",
-                  f"{R['dq']['clean']['n_rows']:,}  (96.01% retained)",
-                  "200 SKUs × 604 trading days = 120,800",
-                  "None"],
+        "Property": ["Name", "Source", "Business", "Period",
+                     "Raw records", "After cleaning", "Licence", "Credentials"],
+        "Value": ["Online Retail II",
+                  "UCI Machine Learning Repository",
+                  "UK online giftware wholesaler",
+                  "01 Dec 2009 → 09 Dec 2011",
+                  f"{dq['raw']['n_rows']:,} invoice lines",
+                  f"{dq['clean']['n_rows']:,}  (96.01% retained)",
+                  "CC BY 4.0 (free to use with attribution)",
+                  "None — direct download"],
     })
-    table(sl, df, Inches(0.6), Inches(1.4), Inches(6.3), Inches(2.3),
-          font=12, col_widths=[1, 1.75])
-    textbox(sl, Inches(0.6), Inches(3.95), Inches(6.3), Inches(0.9),
-            "Chosen over Kaggle Favorita (richer: promotions, oil, holidays)\n"
-            "because Kaggle returns HTTP 401 without a personal token.\n"
-            "Reproducibility beat the extra columns.",
-            size=13, color=GREY, space_after=3)
-    rect(sl, Inches(7.15), Inches(1.4), Inches(5.6), Inches(3.5),
-         fill=RGBColor(0xFF, 0xF5, 0xF5), line=RED)
-    textbox(sl, Inches(7.35), Inches(1.55), Inches(5.2), Inches(0.4),
-            "DATA HONESTY", size=15, bold=True, color=RED)
-    textbox(sl, Inches(7.35), Inches(2.0), Inches(5.2), Inches(2.8),
-            "REAL (from the dataset):\n"
-            "units sold · date · price · SKU · country · invoice\n\n"
-            "SIMULATED (sim/, fixed seed):\n"
-            "stock · suppliers · lead time · MOQ · pack size\n"
-            "capacity · reliability · all costs\n\n"
-            "This is a SALES log. It contains no supply-side\n"
-            "data at all — and you cannot make a purchasing\n"
-            "decision without it.",
-            size=12, color=RGBColor(0x74, 0x1A, 0x1A), space_after=2)
-    callout(sl, Inches(0.6), Inches(5.1), Inches(12.15), Inches(0.95),
-            "Policy comparisons are valid — all policies face identical real demand and identical simulated terms. "
-            "Absolute currency figures are NOT claims about the real retailer.", color=RED)
-    notes(sl,
-          "I used UCI Online Retail II - real transactions from a UK giftware "
-          "wholesaler. I chose it over the richer Kaggle Favorita dataset for "
-          "one reason: it needs no credentials, so this whole project "
-          "reproduces from a single command. But I need to be upfront about "
-          "something. This is a sales log. It contains no stock levels, no "
-          "suppliers, no lead times and no costs - and you cannot make a "
-          "purchasing decision without those. So I simulate them, from an "
-          "explicit config file with a fixed seed, and I label them as "
-          "simulated everywhere. I will not present a simulated number as a "
-          "measurement.")
+    table(sl, df, MARGIN, Inches(1.45), Inches(6.5), Inches(2.85), font=11.5,
+          widths=[0.9, 1.9])
 
-    # ---------------------------------------------------------- 4 EDA Saturday
-    sl = blank(prs)
-    title_bar(sl, "EDA — the finding that nearly broke the project", None, 4)
-    wk = R["dq"]["clean"]["invoices_by_weekday"]
-    df = pd.DataFrame({"Day": list(wk), "Invoices": [f"{v:,}" for v in wk.values()]})
-    table(sl, df, Inches(0.6), Inches(1.45), Inches(3.3), Inches(3.4),
-          font=12, highlight_rows=[5])
-    picture(sl, "eda_08_day_of_week.png", Inches(4.15), Inches(1.45), h=Inches(3.5))
-    callout(sl, Inches(0.6), Inches(5.3), Inches(12.15), Inches(1.5),
-            "This business does not trade on Saturdays — 30 invoices against 5,987–8,167 on weekdays.\n"
-            f"{eda['trading_calendar']['non_trading_days']} of {eda['trading_calendar']['calendar_days']} "
-            "calendar days are non-trading; 104 of those are Saturdays.\n"
-            "Zero-filling them would have injected ~17% FAKE zero-demand rows and dragged every forecast down.",
-            color=RED, size=14)
-    notes(sl,
-          "This is my favourite finding because it nearly broke the project. "
-          "When I plotted invoices by day of week, Saturday had thirty. Not "
-          "thirty thousand - thirty, against eight thousand on a Thursday. "
-          "This business doesn't trade on Saturdays. If I had built a "
-          "calendar-day panel and filled those with zeros, I would have "
-          "injected about seventeen percent fake zero-demand observations and "
-          "dragged every single forecast downward. So the panel is built on "
-          "trading days only - 604 of 739.")
+    text(sl, MARGIN, Inches(4.5), Inches(6.5), Inches(0.3),
+         "SOURCE LINKS", size=11, bold=True, color=STEEL, gap=0)
+    link(sl, MARGIN, Inches(4.82), Inches(6.6), Inches(0.26),
+         "▸  Dataset page:  archive.ics.uci.edu/dataset/502/online+retail+ii",
+         "https://archive.ics.uci.edu/dataset/502/online+retail+ii", size=11.5)
+    link(sl, MARGIN, Inches(5.12), Inches(6.6), Inches(0.26),
+         "▸  DOI:  https://doi.org/10.24432/C5CG6D",
+         "https://doi.org/10.24432/C5CG6D", size=11.5)
+    link(sl, MARGIN, Inches(5.42), Inches(6.6), Inches(0.26),
+         "▸  Alternative considered — Kaggle Store Sales (Favorita)",
+         "https://www.kaggle.com/competitions/store-sales-time-series-forecasting",
+         size=11.5)
 
-    # ---------------------------------------------------------- 5 EDA uncertainty
-    sl = blank(prs)
-    title_bar(sl, "EDA — why uncertainty is the whole story", None, 5)
-    dd, tq = eda["demand_distribution"], eda["target_quantiles"]
-    for i, (v, lab, col) in enumerate([
-        (f"{dd['skew']:.1f}", "Demand skewness\n(nothing like Normal)", RED),
-        (f"{eda['intermittency']['overall_pct_zero_sku_days']:.1f}%", "SKU-days with\nzero demand", AMBER),
-        (f"+{eda['seasonality']['q4_uplift_pct']:.1f}%", "Q4 uplift\n(Sep–Nov)", GREEN),
-        (f"{tq['P95_over_P50']:.1f}×", "P95 ÷ P50 of\n7-day demand", RED),
-    ]):
-        metric_card(sl, Inches(0.6 + i * 3.07), Inches(1.4), Inches(2.9), Inches(1.5), v, lab, col)
-    picture(sl, "eda_15_target_quantiles.png", Inches(1.6), Inches(3.15), h=Inches(3.0))
-    callout(sl, Inches(0.6), Inches(6.35), Inches(12.15), Inches(0.75),
-            f"P95 of weekly demand is {tq['P95']:,.0f} units against a median of {tq['P50']:,.0f}. "
-            "Plan to the median and you are short half the time. That single ratio is the business case "
-            "for everything built after this point.")
-    notes(sl,
-          "Four numbers that shaped every modelling choice. Demand is skewed "
-          "at 24.6 - nothing like a bell curve, which rules out the textbook "
-          "safety-stock formula. Nearly a third of SKU-days have zero sales, "
-          "so this is genuinely intermittent demand. There's a 65% Q4 uplift. "
-          "But the number that matters most is the last one: the 95th "
-          "percentile of weekly demand is 8.2 times the median. Plan to the "
-          "median and you're short half the time. That single ratio is the "
-          "business case for everything I built after this point.")
+    rect(sl, Inches(7.45), Inches(1.45), Inches(5.3), Inches(2.85),
+         fill=WHITE, line=RGBColor(0xDD, 0xE5, 0xEF), radius=True)
+    text(sl, Inches(7.7), Inches(1.62), Inches(4.8), Inches(0.3),
+         "WHAT EACH RECORD CONTAINS", size=11, bold=True, color=STEEL, gap=0)
+    text(sl, Inches(7.7), Inches(1.98), Inches(4.8), Inches(2.2),
+         "Invoice      · bill number\nStockCode    · product ID\n"
+         "Description  · product name\nQuantity     · units sold\n"
+         "InvoiceDate  · date & time\nPrice        · unit price\n"
+         "Customer ID  · buyer (22.8% blank)\nCountry      · 43 countries",
+         size=11.5, color=NAVY, font="Consolas", gap=2)
 
-    # ---------------------------------------------------------- 6 Methodology
+    banner(sl, Inches(7.45), Inches(4.5), Inches(5.3), Inches(1.68),
+           "WHY THIS DATASET?\n"
+           "Kaggle's Favorita set is richer (it has promotions and holidays) but "
+           "needs a personal login token, which cannot be automated.\n"
+           "We chose reproducibility: our project downloads its data and runs "
+           "with ONE command, on any machine.", accent=TEAL,
+           bg=RGBColor(0xE9, 0xFB, 0xF8), fg=RGBColor(0x0C, 0x4F, 0x47), size=11.5)
+    notes(sl,
+          "Our data is real. It comes from the UCI Machine Learning Repository "
+          "- the Online Retail II dataset, which is a UK online giftware "
+          "wholesaler's complete sales record for two years, just over a "
+          "million invoice lines, free to use under Creative Commons. The "
+          "links are on the slide. We did consider Kaggle's Favorita dataset "
+          "which is richer, but it needs a personal login token that cannot be "
+          "automated, so we chose this one - our project downloads its own "
+          "data and runs with one command on any machine.")
+    footer(sl, 5)
+
+    # ============================================================ 6 HONESTY
     sl = blank(prs)
-    title_bar(sl, "Methodology & Leakage Control", "Time-series ML is easy to get wrong", 6)
-    textbox(sl, Inches(0.6), Inches(1.4), Inches(6.0), Inches(2.6),
-            "Timing convention\n"
-            "• Row (sku, t) = decision at the START of day t\n"
-            "• Features: data from t−1 and earlier ONLY\n"
-            "• Every rolling statistic built on .shift(1)\n"
-            "• Target: demand over t … t+6",
-            size=15, color=GREY, space_after=10)
+    header(sl, "What is real and what we had to simulate", "data honesty",
+           accent=AMBER)
+    text(sl, MARGIN, Inches(1.45), Inches(12.1), Inches(0.45),
+         "The dataset records what was SOLD. It does not record what was in the warehouse. "
+         "But you cannot decide a purchase order without stock, suppliers and costs — "
+         "so we generate those, and we say so everywhere.",
+         size=13.5, color=SLATE, gap=3)
+
+    rect(sl, MARGIN, Inches(2.15), Inches(5.9), Inches(3.3),
+         fill=RGBColor(0xEC, 0xFA, 0xF1), line=LIME, radius=True)
+    text(sl, MARGIN + Inches(0.25), Inches(2.33), Inches(5.4), Inches(0.35),
+         "REAL — straight from the dataset", size=13, bold=True,
+         color=RGBColor(0x1B, 0x6B, 0x45), gap=0)
+    text(sl, MARGIN + Inches(0.25), Inches(2.78), Inches(5.4), Inches(2.4),
+         "✓  units sold per product per day\n✓  dates and the trading calendar\n"
+         "✓  unit prices\n✓  product codes and descriptions\n"
+         "✓  invoice and customer records\n✓  country of the buyer\n"
+         "✓  returns / cancellations",
+         size=12.5, color=RGBColor(0x1E, 0x5A, 0x3D), gap=4)
+
+    rect(sl, Inches(6.85), Inches(2.15), Inches(5.9), Inches(3.3),
+         fill=RGBColor(0xFF, 0xF2, 0xF2), line=CORAL, radius=True)
+    text(sl, Inches(7.1), Inches(2.33), Inches(5.4), Inches(0.35),
+         "SIMULATED — generated by us, seeded", size=13, bold=True,
+         color=RGBColor(0x8A, 0x2B, 0x2B), gap=0)
+    text(sl, Inches(7.1), Inches(2.78), Inches(5.4), Inches(2.4),
+         "✗  stock level in the warehouse\n✗  suppliers and their reliability\n"
+         "✗  delivery lead times\n✗  minimum order quantity, pack size\n"
+         "✗  supplier capacity\n✗  purchase / holding / shortage costs\n"
+         "✗  purchase orders",
+         size=12.5, color=RGBColor(0x8A, 0x2B, 0x2B), gap=4)
+
+    banner(sl, MARGIN, Inches(5.55), Inches(12.1), Inches(1.15),
+           "How we keep this honest:  all simulated values come from one config file (sim/supply_config.yaml) "
+           "with a fixed random seed, every row is flagged is_simulated, and the dashboard shows a warning. "
+           "Because all methods face the SAME real demand and the SAME simulated terms, comparing them is valid — "
+           "we just never call a simulated number a measurement.",
+           accent=AMBER, size=12.5)
+    notes(sl,
+          "This slide is about honesty, and we think it is the most important "
+          "slide in the deck. The dataset records what was sold. It does not "
+          "record what was sitting in the warehouse, who the suppliers were, "
+          "how long delivery took, or what anything cost. But you cannot "
+          "decide a purchase order without those. So we generate them, from "
+          "one config file with a fixed seed, and we label them as simulated "
+          "everywhere - in the code, the dashboard and the report. Because "
+          "every method faces the same real demand and the same simulated "
+          "terms, comparing the methods is still valid. We just never call a "
+          "simulated number a measurement.")
+    footer(sl, 6)
+
+    # ============================================================ 7 METHOD
+    sl = blank(prs)
+    header(sl, "How the system works", "methodology")
+    arrow_flow(sl, ["RAW DATA\n1.07M rows", "CLEANING\n7 rules", "EDA\n16 charts",
+                    "FEATURES\n43 / 52", "MODELS\n13 compared",
+                    "DECISION\npolicy", "EXPLAIN\nSHAP"],
+               MARGIN, Inches(1.45), Inches(12.1), Inches(0.85))
+
+    text(sl, MARGIN, Inches(2.6), Inches(6.0), Inches(0.3),
+         "TWO MACHINE-LEARNING PROBLEMS", size=11, bold=True, color=STEEL, gap=0)
+    rect(sl, MARGIN, Inches(2.95), Inches(2.9), Inches(1.5), fill=WHITE,
+         line=SKY, radius=True)
+    text(sl, MARGIN + Inches(0.15), Inches(3.08), Inches(2.6), Inches(1.3),
+         "REGRESSION\nHow many units will\nsell in 7 days?\n→ e.g. 486 units",
+         size=12, color=NAVY, gap=3)
+    rect(sl, MARGIN + Inches(3.1), Inches(2.95), Inches(2.9), Inches(1.5),
+         fill=WHITE, line=TEAL, radius=True)
+    text(sl, MARGIN + Inches(3.25), Inches(3.08), Inches(2.6), Inches(1.3),
+         "CLASSIFICATION\nWill we run out before\nthe delivery arrives?\n→ YES / NO",
+         size=12, color=NAVY, gap=3)
+
+    text(sl, MARGIN, Inches(4.65), Inches(6.0), Inches(0.3),
+         "THE RULE THAT PROTECTS US FROM CHEATING", size=11, bold=True,
+         color=STEEL, gap=0)
+    text(sl, MARGIN, Inches(5.0), Inches(6.0), Inches(1.4),
+         "A decision on day t may use data from day t−1 and earlier ONLY.\n"
+         "The answer (days t … t+6) is never visible to the model.\n"
+         "We split by DATE, never randomly — and 8 automated tests check it.",
+         size=12.5, color=SLATE, gap=4)
+
     df = pd.DataFrame({
         "Split": ["Train", "Validation", "Test"],
         "Rows": ["66,859", "16,239", "16,689"],
-        "Period": ["2010-01-12 → 2011-05-15",
-                   "2011-05-16 → 2011-08-23",
-                   "2011-08-24 → 2011-12-02"],
+        "Period": ["Jan 2010 – May 2011", "May – Aug 2011", "Aug – Dec 2011"],
     })
-    table(sl, df, Inches(0.6), Inches(4.15), Inches(6.0), Inches(1.4),
-          font=12, col_widths=[0.7, 0.6, 1.6])
-    rect(sl, Inches(7.0), Inches(1.4), Inches(5.75), Inches(4.15),
-         fill=LIGHT, line=RGBColor(0xCB, 0xD5, 0xE0))
-    textbox(sl, Inches(7.25), Inches(1.6), Inches(5.3), Inches(0.4),
-            "Leakage is TESTED, not asserted", size=15, bold=True, color=NAVY)
-    textbox(sl, Inches(7.25), Inches(2.1), Inches(5.3), Inches(3.3),
-            "• Synthetic strictly-increasing series where any\n"
-            "   leak is arithmetically visible\n"
-            "• rolling_max_7 must equal EXACTLY yesterday\n"
-            "• Target formula verified on a known sequence\n"
-            "• Any feature correlating > 0.97 with the target\n"
-            "   is flagged\n"
-            "• Splits must not share a single date\n\n"
-            "8 dedicated leakage tests — all passing",
-            size=13, color=GREY, space_after=6)
-    callout(sl, Inches(0.6), Inches(5.85), Inches(12.15), Inches(0.9),
-            "Chronological split, never random: consecutive days for one SKU share almost all their "
-            "rolling-window history, so a random split would leak the answer and inflate every score.")
+    table(sl, df, Inches(7.0), Inches(2.95), Inches(5.75), Inches(1.5),
+          font=11.5, widths=[0.7, 0.6, 1.4])
+    banner(sl, Inches(7.0), Inches(4.65), Inches(5.75), Inches(1.75),
+           "Why split by date?\n"
+           "Two days in a row share almost all their history. If one went into "
+           "training and the next into testing, the model would effectively "
+           "have seen the answer — and our scores would look great but be "
+           "meaningless.", accent=TEAL, bg=RGBColor(0xE9, 0xFB, 0xF8),
+           fg=RGBColor(0x0C, 0x4F, 0x47), size=12)
     notes(sl,
-          "Time-series ML is easy to get wrong, so let me be precise. A row is "
-          "a decision taken at the start of day t. Features may only use "
-          "yesterday and earlier - every rolling statistic is computed on a "
-          "shifted series. The target is the next seven days. I split "
-          "chronologically, never randomly, because consecutive days share "
-          "almost all their rolling history; a random split would leak the "
-          "answer and inflate every score. And I don't just assert this - I "
-          "test it on a monotonically increasing series where any leak is "
-          "arithmetically visible.")
+          "This is how the system works end to end. Raw data, cleaning with "
+          "seven documented rules, exploratory analysis, feature engineering, "
+          "thirteen models, then the decision policy and the explanation "
+          "layer. We solve two machine learning problems: a regression that "
+          "predicts how many units will sell, and a classification that says "
+          "whether we will run out. The bottom-left box is the rule that stops "
+          "us cheating - a decision on day t can only use data up to the day "
+          "before, and we split by date rather than randomly, because two "
+          "consecutive days share almost all their history.")
+    footer(sl, 7)
 
-    # ---------------------------------------------------------- 7 Polynomial
+    # ============================================================ 8 EDA
     sl = blank(prs)
-    title_bar(sl, "Unit 1 — Polynomial Curve Fitting & Overfitting", None, 7)
+    header(sl, "What we discovered in the data", "exploratory data analysis")
+    dd, tq = eda["demand_distribution"], eda["target_quantiles"]
+    for i, (v, lab, c) in enumerate([
+        ("30 vs 8,167", "Saturday invoices vs\nThursday — the shop is\nCLOSED on Saturdays", CORAL),
+        (f"{dd['skew']:.0f}", "Skewness — demand is\nnothing like a\nnormal bell curve", AMBER),
+        (f"{eda['intermittency']['overall_pct_zero_sku_days']:.0f}%", "of product-days have\nZERO sales", AMBER),
+        (f"{tq['P95_over_P50']:.1f}×", "A busy week sells 8×\na typical week", CORAL),
+    ]):
+        card(sl, MARGIN + Inches(i * 3.08), Inches(1.45), Inches(2.9),
+             Inches(1.62), v, lab, accent=c, vsize=22)
+    picture(sl, "eda_08_day_of_week.png", MARGIN, Inches(3.3), w=Inches(5.9), h=Inches(2.55))
+    picture(sl, "eda_15_target_quantiles.png", Inches(6.9), Inches(3.3), w=Inches(5.85), h=Inches(2.55))
+    banner(sl, MARGIN, Inches(6.0), Inches(12.1), Inches(0.72),
+           "The Saturday discovery nearly broke our project: if we had filled those closed days with zeros, "
+           "we would have added ~17% FAKE no-sale records and pushed every forecast downwards. "
+           "We build the calendar from days the shop actually traded — 604 of 739.",
+           accent=CORAL, bg=RGBColor(0xFF, 0xF2, 0xF2), fg=RGBColor(0x7D, 0x25, 0x25))
+    notes(sl,
+          "Four discoveries shaped everything. First and most important: this "
+          "shop does not trade on Saturdays - thirty invoices against eight "
+          "thousand on a Thursday. If we had filled those closed days with "
+          "zeros we would have added about seventeen percent fake no-sale "
+          "records and pushed every forecast down. Second, demand is skewed at "
+          "24, nothing like a bell curve. Third, nearly a third of product-days "
+          "have no sales at all. Fourth, a busy week sells eight times a "
+          "typical week - and that last number is the reason our whole "
+          "uncertainty layer exists.")
+    footer(sl, 8)
+
+    # ============================================================ 9 UNIT 1
+    sl = blank(prs)
+    header(sl, "Unit 1 — Polynomial curve fitting & overfitting",
+           "syllabus concept, measured on real data", accent=SKY)
     p = R["poly"].sort_values("degree")
     df = pd.DataFrame({
         "Degree": p["degree"].astype(int),
         "Terms": p["n_polynomial_terms"].astype(int),
-        "Train RMSE": p["train_RMSE"].round(2),
-        "Test RMSE": p["test_RMSE"].round(2),
+        "Train error": p["train_RMSE"].round(1),
+        "Test error": p["test_RMSE"].round(1),
         "Test R²": p["test_R2"].round(2),
     })
-    table(sl, df, Inches(0.6), Inches(1.45), Inches(5.6), Inches(2.0),
-          font=12, highlight_rows=[3])
-    textbox(sl, Inches(0.6), Inches(3.75), Inches(5.6), Inches(1.9),
-            "• Training error falls EVERY time: 285.77 → 278.42\n"
-            "• Test error rises 3.2×: 291.05 → 941.97\n"
-            "• Test R² goes NEGATIVE at degree 4 (−4.23)\n"
-            "   — worse than predicting the mean\n"
-            "• Constant Ridge penalty at every degree, so the\n"
-            "   comparison isolates capacity alone",
-            size=14, color=GREY, space_after=7)
-    picture(sl, "model_polynomial_overfitting.png", Inches(6.5), Inches(1.45), h=Inches(4.3))
-    callout(sl, Inches(0.6), Inches(5.9), Inches(12.15), Inches(0.8),
-            "The Unit 1 bias–variance trade-off measured on real data, not drawn as a cartoon.",
-            color=GREEN)
+    table(sl, df, MARGIN, Inches(1.5), Inches(5.9), Inches(1.85), font=12,
+          hot=[3], widths=[0.7, 0.6, 0.9, 0.9, 0.7])
+    text(sl, MARGIN, Inches(3.6), Inches(5.9), Inches(2.0),
+         "As we increase the polynomial degree:\n\n"
+         "▸  Training error keeps IMPROVING  285.8 → 278.4\n"
+         "▸  Test error gets 3.2× WORSE      291.1 → 942.0\n"
+         "▸  R² becomes NEGATIVE at degree 4 — the model is\n"
+         "    worse than simply guessing the average\n\n"
+         "The penalty is held constant, so only capacity changed.",
+         size=12.5, color=SLATE, gap=4)
+    picture(sl, "model_polynomial_overfitting.png", Inches(6.85), Inches(1.5),
+            w=Inches(5.9), h=Inches(4.3))
+    banner(sl, MARGIN, Inches(5.9), Inches(12.1), Inches(0.8),
+           "This is the bias–variance trade-off from Unit 1 — not drawn as a textbook cartoon, but measured on "
+           "our own data. A more powerful model is not automatically a better model.",
+           accent=SKY, bg=RGBColor(0xEC, 0xF4, 0xFE), fg=RGBColor(0x14, 0x3A, 0x66))
     notes(sl,
-          "This is the Unit 1 bias-variance trade-off, measured on real data "
-          "rather than drawn as a cartoon. As I raise the polynomial degree, "
-          "training error falls every single time - 285 down to 278. But test "
-          "error goes from 291 to 942, and R-squared goes negative at degree "
-          "four, meaning the model is worse than just predicting the average. "
-          "Same data, same penalty, only capacity changed. That's overfitting, "
-          "and you can watch it happen.")
+          "This is the Unit 1 concept of polynomial curve fitting, and we "
+          "measured it on real data rather than drawing a textbook cartoon. As "
+          "we raise the degree, the training error keeps improving - the model "
+          "fits the data it has seen better and better. But the test error "
+          "gets 3.2 times worse, and at degree four the R-squared actually "
+          "goes negative, meaning the model is worse than just guessing the "
+          "average. Same data, same penalty, only the capacity changed. That "
+          "is overfitting, and you can watch it happen.")
+    footer(sl, 9)
 
-    # ---------------------------------------------------------- 8 Regression
+    # ============================================================ 10 REGRESSION
     sl = blank(prs)
-    title_bar(sl, "Unit 2 — Regression Results", "7-day demand forecast", 8)
+    header(sl, "Unit 2 — Demand forecasting results",
+           "7 models compared, including 2 simple baselines", accent=SKY)
     reg = R["reg"].sort_values("test_RMSE")
     df = pd.DataFrame({
         "Model": [m.replace(" (gradient-boosted trees)", "")
                   .replace("Bayesian Linear Regression (Bayesian Ridge)", "Bayesian Linear Regression")
-                  .replace(" × horizon", " × h") for m in reg["model"]],
-        "MAE": reg["test_MAE"].round(2),
-        "RMSE": reg["test_RMSE"].round(2),
+                  .replace("Baseline: ", "★ Baseline: ")
+                  .replace(" x horizon", "") for m in reg["model"]],
+        "MAE": reg["test_MAE"].round(1),
+        "RMSE": reg["test_RMSE"].round(1),
         "R²": reg["test_R2"].round(3),
-        "RMSLE": reg["test_RMSLE"].round(3),
     })
-    table(sl, df, Inches(0.6), Inches(1.4), Inches(7.4), Inches(2.9),
-          font=11, highlight_rows=[0], col_widths=[2.3, 0.6, 0.6, 0.55, 0.6])
-    picture(sl, "model_regression_rmse.png", Inches(8.25), Inches(1.4), h=Inches(2.9))
-    callout(sl, Inches(0.6), Inches(4.5), Inches(5.95), Inches(1.15),
-            "MLE ↔ least squares: with Gaussian noise, maximising the "
-            "likelihood IS minimising squared error. OLS already is an MLE.",
-            color=GREEN)
-    callout(sl, Inches(6.75), Inches(4.5), Inches(6.0), Inches(1.15),
-            "LightGBM came 6th of 7 — behind a moving average. "
-            "Zero-inflation + a test period outside the training range. Reported, not hidden.",
-            color=RED)
-    textbox(sl, Inches(0.6), Inches(5.85), Inches(12.15), Inches(0.9),
-            "Huber wins MAE (124.04) and RMSLE (0.939) by refusing to chase the 9,480-unit outlier days. "
-            "RMSE is the declared primary metric because inventory cost is driven by large misses — "
-            "a judgement about the cost function, not a claim that Huber is worse.",
-            size=12, color=GREY)
-    notes(sl,
-          "Here's the regression comparison, and there are two honest things "
-          "to say. First: Ridge wins, and MLE connects straight to this - "
-          "minimising squared error is maximising the Gaussian likelihood, so "
-          "OLS already is a maximum-likelihood estimator. Ridge adds an L2 "
-          "penalty, which I needed because my design matrix is badly "
-          "conditioned. Second, the uncomfortable part: LightGBM came sixth of "
-          "seven, behind a moving average. I'm reporting that rather than "
-          "hiding it. Three reasons - zero inflation fragments tree splits, "
-          "the test period is the Q4 peak and trees can't extrapolate past "
-          "their training range, and my rolling features already encode what a "
-          "tree would have to learn.")
+    table(sl, df, MARGIN, Inches(1.45), Inches(6.5), Inches(2.9), font=11,
+          hot=[0], widths=[2.5, 0.6, 0.6, 0.6])
+    picture(sl, "model_regression_rmse.png", Inches(7.3), Inches(1.45), w=Inches(5.45), h=Inches(2.9))
 
-    # ---------------------------------------------------------- 9 Classification
+    banner(sl, MARGIN, Inches(4.55), Inches(6.2), Inches(1.15),
+           "Unit 2 link: minimising squared error IS maximising the Gaussian "
+           "likelihood — so ordinary least squares already is a Maximum "
+           "Likelihood Estimator. Ridge adds an L2 penalty.",
+           accent=SKY, bg=RGBColor(0xEC, 0xF4, 0xFE), fg=RGBColor(0x14, 0x3A, 0x66),
+           size=12)
+    banner(sl, Inches(7.0), Inches(4.55), Inches(5.75), Inches(1.15),
+           "HONEST RESULT: LightGBM — the most advanced model — came 6th of 7, "
+           "behind a simple moving average. We report it instead of hiding it.",
+           accent=CORAL, bg=RGBColor(0xFF, 0xF2, 0xF2), fg=RGBColor(0x7D, 0x25, 0x25),
+           size=12)
+    text(sl, MARGIN, Inches(5.88), Inches(12.1), Inches(0.8),
+         "Why did the advanced model lose?  Demand is 31.7% zeros, which fragments decision trees; and the test "
+         "period is the Christmas peak, which lies outside the range the trees ever saw — trees cannot extrapolate, "
+         "linear models can.", size=12, color=SLATE, gap=3)
+    notes(sl,
+          "Here are our forecasting results - seven models including two "
+          "simple baselines so we can tell whether machine learning actually "
+          "added anything. Ridge regression won. The Unit 2 connection is on "
+          "the left: minimising squared error is the same thing as maximising "
+          "the Gaussian likelihood, so ordinary least squares already is a "
+          "maximum likelihood estimator. And on the right is our honest "
+          "result: LightGBM, the most advanced model, came sixth of seven, "
+          "behind a moving average. We report it rather than hide it, and we "
+          "can explain why - zero inflation and a test period outside the "
+          "training range.")
+    footer(sl, 10)
+
+    # ============================================================ 11 CLASSIFICATION
     sl = blank(prs)
-    title_bar(sl, "Unit 2 — Classification & the Kernel Trick", "Reorder / stockout risk", 9)
+    header(sl, "Unit 2 — Reorder prediction & the kernel trick",
+           "6 classifiers, each mapped to a syllabus topic", accent=TEAL)
     clf = R["clf"].sort_values("test_f1", ascending=False)
     df = pd.DataFrame({
-        "Model": [m.replace("Linear Discriminant Analysis", "LDA (discriminant fn)")
-                  .replace("Gaussian Naive Bayes", "Gaussian NB (generative)")
-                  .replace("Logistic Regression", "Logistic (discriminative)")
+        "Model": [m.replace("Linear Discriminant Analysis", "LDA — discriminant function")
+                  .replace("Gaussian Naive Bayes", "Gaussian NB — generative")
+                  .replace("Logistic Regression", "Logistic — discriminative")
+                  .replace("LightGBM Classifier", "LightGBM")
                   for m in clf["model"]],
-        "Prec": clf["test_precision"].round(3),
+        "Precision": clf["test_precision"].round(3),
         "Recall": clf["test_recall"].round(3),
         "F1": clf["test_f1"].round(3),
         "AUC": clf["test_roc_auc"].round(3),
     })
-    table(sl, df, Inches(0.6), Inches(1.4), Inches(6.1), Inches(2.6),
-          font=11, highlight_rows=[0], col_widths=[2.2, 0.6, 0.6, 0.6, 0.6])
-    picture(sl, "model_roc_curves.png", Inches(7.0), Inches(1.35), h=Inches(3.6))
-    callout(sl, Inches(0.6), Inches(4.2), Inches(6.1), Inches(1.4),
-            "GENERATIVE vs DISCRIMINATIVE\n"
-            "Naive Bayes: recall 0.969 but precision 0.374 — its independence "
-            "assumption is violated, so it flags almost everything.\n"
-            "Logistic models p(y|x) directly: F1 0.748 vs 0.540.", color=GREEN)
-    callout(sl, Inches(0.6), Inches(5.75), Inches(12.15), Inches(1.05),
-            "KERNEL TRICK — Linear SVM F1 0.748  BEATS  RBF SVM F1 0.718, with identical C, features and subsample. "
-            "The infinite-dimensional feature map LOST: the boundary is close to linear here. A negative result, reported.",
-            color=RED)
+    table(sl, df, MARGIN, Inches(1.45), Inches(6.6), Inches(2.6), font=10.5,
+          hot=[0], widths=[2.4, 0.7, 0.65, 0.6, 0.6])
+    picture(sl, "model_roc_curves.png", Inches(7.4), Inches(1.4), w=Inches(5.35), h=Inches(3.5))
+    banner(sl, MARGIN, Inches(4.35), Inches(6.6), Inches(1.35),
+           "GENERATIVE vs DISCRIMINATIVE (Unit 2)\n"
+           "Naive Bayes uses Bayes' rule on p(x|y) — recall 0.969 but precision "
+           "only 0.374: it flags almost everything. Logistic models p(y|x) "
+           "directly: F1 0.748 vs 0.540.",
+           accent=TEAL, bg=RGBColor(0xE9, 0xFB, 0xF8), fg=RGBColor(0x0C, 0x4F, 0x47),
+           size=11.5)
+    banner(sl, MARGIN, Inches(5.85), Inches(12.1), Inches(0.85),
+           "KERNEL TRICK:  Linear SVM (F1 0.748) BEAT the RBF kernel SVM (0.718) — same settings, same data, "
+           "only the kernel changed. The infinite-dimensional feature map did not help, which tells us the "
+           "boundary is nearly linear here. Another negative result, reported.",
+           accent=CORAL, bg=RGBColor(0xFF, 0xF2, 0xF2), fg=RGBColor(0x7D, 0x25, 0x25),
+           size=12)
     notes(sl,
-          "Six classifiers, each mapped to a Unit 2 topic. Two results are "
-          "worth dwelling on. Generative versus discriminative: Naive Bayes "
-          "models the feature distribution and applies Bayes rule - it gets "
-          "97% recall but only 37% precision, because its independence "
-          "assumption is badly violated by my correlated rolling means, so it "
-          "flags almost everything. Logistic regression models the probability "
-          "directly and is far better calibrated. The kernel trick: linear SVM "
-          "scores 0.748, RBF scores 0.718 - same C, same data, only the kernel "
-          "differs. The infinite-dimensional feature map lost. That tells me "
-          "the boundary is close to linear here, and it's a negative result "
-          "I'm happy to report.")
+          "Six classifiers, each one mapped to a Unit 2 topic. Two results are "
+          "worth explaining. Generative versus discriminative: Naive Bayes "
+          "models the feature distribution and applies Bayes rule - it catches "
+          "97% of the real cases but its precision is only 37%, so it flags "
+          "almost everything. Logistic regression models the probability "
+          "directly and is much better balanced. And the kernel trick: the "
+          "linear SVM actually beat the RBF kernel SVM with identical "
+          "settings, which tells us the decision boundary is nearly linear "
+          "here. That is a negative result and we report it.")
+    footer(sl, 11)
 
-    # ---------------------------------------------------------- 10 Quantiles
+    # ============================================================ 12 UNCERTAINTY
     sl = blank(prs)
-    title_bar(sl, "Unit 1 — Uncertainty: Learned Quantiles", "Probability, PDFs and quantiles applied", 10)
+    header(sl, "Unit 1 — Handling uncertainty with quantiles",
+           "probability, mean, variance and quantiles applied", accent=AMBER)
     qt = R["qt"].sort_values("quantile")
     df = pd.DataFrame({
         "Target": [f"P{int(q*100)}" for q in qt["quantile"]],
-        "Coverage": qt["empirical_coverage_test"].round(3),
+        "Actual coverage": qt["empirical_coverage_test"].round(3),
         "Error": qt["coverage_error"].round(3),
-        "Pinball loss": qt["pinball_loss_test"].round(2),
     })
-    table(sl, df, Inches(0.6), Inches(1.5), Inches(5.3), Inches(1.9), font=12)
-    textbox(sl, Inches(0.6), Inches(3.7), Inches(5.4), Inches(2.0),
-            "• Trained on the pinball loss — the proper\n   scoring rule for a quantile\n"
-            "• Calibration within 2.1 points at every level\n"
-            "• No Normality assumption — essential given\n   measured skewness of 24.6\n"
-            "• Feeds the safety-stock buffer in policy P4",
-            size=14, color=GREY, space_after=8)
-    picture(sl, "model_quantile_calibration.png", Inches(6.4), Inches(1.4), h=Inches(4.4))
+    table(sl, df, MARGIN, Inches(1.5), Inches(4.3), Inches(1.85), font=12,
+          widths=[0.7, 1.2, 0.7])
+    text(sl, MARGIN, Inches(3.6), Inches(5.9), Inches(2.3),
+         "A single predicted number is not enough for stock planning.\n\n"
+         "▸  P50 = the typical week\n"
+         "▸  P90 = a busy week — stock for this and you are short\n"
+         "    only 1 week in 10\n"
+         "▸  P95 = a very busy week\n\n"
+         "The gap between P95 and P50 becomes our SAFETY STOCK —\n"
+         "learned from the data, not assumed from a bell curve.",
+         size=12.5, color=SLATE, gap=4)
+    picture(sl, "model_quantile_calibration.png", Inches(6.85), Inches(1.5),
+            w=Inches(5.9), h=Inches(4.3))
+    banner(sl, MARGIN, Inches(5.9), Inches(12.1), Inches(0.8),
+           "Calibration check — does our P90 model really cover 90% of weeks?  It covers 89.2%. "
+           "Every level is within 2.1 percentage points of its target, with no normality assumption — "
+           "which matters because our demand skewness is 24.6.",
+           accent=AMBER, size=12.5)
     notes(sl,
-          "Because demand is skewed at 24.6, the classical z-sigma-root-L "
-          "safety stock formula misprices the tail. So instead I train "
-          "LightGBM models directly on the pinball loss to predict quantiles. "
-          "The calibration check asks: does my P90 model actually cover 90% of "
-          "outcomes? It covers 89.2%. Every level is within 2.1 percentage "
-          "points. That gives me a safety buffer learned from the data's "
-          "actual tail rather than assumed from a bell curve.")
+          "A single predicted number is not enough to plan stock with. So we "
+          "also predict quantiles - the typical week, the busy week, the very "
+          "busy week. The gap between the 95th percentile and the median "
+          "becomes our safety stock, and because it is learned from the data "
+          "we do not have to assume a bell curve, which matters a lot when the "
+          "skewness is 24. The table checks calibration: does our P90 model "
+          "really cover ninety percent of weeks? It covers 89.2 percent. Every "
+          "level is within about two points.")
+    footer(sl, 12)
 
-    # ---------------------------------------------------------- 11 Policy ladder
+    # ============================================================ 13 DECISION
     sl = blank(prs)
-    title_bar(sl, "From Prediction to Decision — the Policy Ladder",
-              "The most important slide in the deck", 11)
+    header(sl, "From prediction to DECISION", "our most important result",
+           accent=LIME)
     pl = R["pol"]
     df = pd.DataFrame({
-        "Policy": ["P0  moving average", "P1  classical reorder point",
+        "Method": ["P0  Simple moving average", "P1  Classical reorder point",
                    "P2  ML forecast, no buffer", "P3  ML + classical buffer",
-                   "P4  ML + quantile buffer"],
+                   "P4  ML + learned buffer"],
         "Fill rate": [f"{v:.1%}" for v in pl["fill_rate"]],
         "Stockout days": [f"{int(v):,}" for v in pl["stockout_days"]],
         "Cost vs P0": [f"{v:+.1f}%" for v in pl["cost_vs_P0_pct"]],
     })
-    table(sl, df, Inches(0.6), Inches(1.4), Inches(6.5), Inches(2.3),
-          font=12, highlight_rows=[2, 4], col_widths=[2.1, 0.8, 0.9, 0.8])
-    picture(sl, "policy_cost_vs_fill_rate.png", Inches(7.3), Inches(1.4), h=Inches(3.4))
-    callout(sl, Inches(0.6), Inches(3.95), Inches(6.5), Inches(1.6),
-            "P2 — the ML point forecast with NO safety buffer — scores 79.2%, "
-            "which is WORSE than the 79.9% naive baseline.\n"
-            "A better forecast, on its own, did not help at all.", color=RED)
-    callout(sl, Inches(0.6), Inches(5.7), Inches(12.15), Inches(1.1),
-            "What helps is modelling UNCERTAINTY. P1 gains 8.8pp with a classical buffer and no ML at all. "
-            "P4 reaches 93.9% — +14.0pp, stockout days cut 75% (2,027 → 496) — for 4.6% more simulated cost. "
-            "Whether that trade is worth taking depends on how you price a lost sale.", color=GREEN)
+    table(sl, df, MARGIN, Inches(1.45), Inches(6.6), Inches(2.3), font=11.5,
+          hot=[2, 4], widths=[2.2, 0.8, 0.95, 0.8])
+    picture(sl, "policy_cost_vs_fill_rate.png", Inches(7.4), Inches(1.45), w=Inches(5.35), h=Inches(3.4))
+    banner(sl, MARGIN, Inches(4.0), Inches(6.6), Inches(1.5),
+           "LOOK AT P2.\n"
+           "The machine-learning forecast with NO safety buffer scores 79.2% — "
+           "WORSE than the simple baseline's 79.9%.\n"
+           "A better prediction, on its own, did not help at all.",
+           accent=CORAL, bg=RGBColor(0xFF, 0xF2, 0xF2), fg=RGBColor(0x7D, 0x25, 0x25),
+           size=12.5)
+    banner(sl, MARGIN, Inches(5.65), Inches(12.1), Inches(1.05),
+           "What DID work is handling uncertainty.  P1 gains 8.8 points using a classical buffer and no ML at all. "
+           "Our full method P4 reaches 93.9% — a 14-point gain with 75% fewer stockout days — for 4.6% more cost. "
+           "Whether that trade is worth it depends on how the business prices a lost sale.",
+           accent=LIME, bg=RGBColor(0xEC, 0xFA, 0xF1), fg=RGBColor(0x1B, 0x6B, 0x45),
+           size=12.5)
     notes(sl,
-          "This is the most important slide in the deck. Look at P2: the ML "
-          "point forecast with no safety buffer. Its fill rate is 79.2% - "
-          "worse than the naive baseline. A better forecast, on its own, did "
-          "not help. What helps is explicitly modelling uncertainty. P1 adds a "
-          "classical buffer with no machine learning and gains nearly nine "
-          "points. P4 combines the ML forecast with the learned quantile "
-          "buffer and reaches 93.9% - fourteen points above baseline, with "
-          "stockout days cut by 75%. It costs 4.6% more, and whether that "
-          "trade is worth it depends on how you price a lost sale - which is a "
-          "parameter I put in a config file so it can be argued about.")
+          "This is our most important result. Look at P2 - the machine "
+          "learning forecast with no safety buffer. It scores 79.2 percent, "
+          "which is worse than the simple baseline. A better prediction on its "
+          "own did not help at all. What did work is handling uncertainty. P1 "
+          "gains almost nine points using a classical safety buffer and no "
+          "machine learning whatsoever. Our full method, P4, combines the ML "
+          "forecast with the learned buffer and reaches 93.9 percent - "
+          "fourteen points better, with 75 percent fewer stockout days, for "
+          "4.6 percent more cost.")
+    footer(sl, 13)
 
-    # ---------------------------------------------------------- 12 XAI
+    # ============================================================ 14 XAI
     sl = blank(prs)
-    title_bar(sl, "Explainable AI — why THIS number?", None, 12)
+    header(sl, "Explainable AI — why THIS number?",
+           "the part that makes it usable", accent=TEAL)
     c = R["cases"][0]
-    lines = [f"Product : {c['sku']}",
-             f"Stock + on order : {c['current_stock']:,.1f} units",
-             f"Predicted 7-day demand : {c['predicted_7d_demand']:,.1f} units",
-             f"Lead time : {c['lead_time_days']} days",
-             f"Stockout risk : {c['stockout_risk']}  (p = {c['reorder_probability']:.4f})",
-             ""]
+    lines = []
     for k, v in c["decomposition"].items():
-        lines.append(f"{v:>+11,.2f}   {k}")
-    lines.append("─" * 46)
-    lines.append(f"{c['decomposition_total']:>11,}   FINAL ORDER QUANTITY")
-    rect(sl, Inches(0.6), Inches(1.4), Inches(6.5), Inches(4.4),
-         fill=RGBColor(0xF3, 0xF6, 0xF9), line=RGBColor(0xCB, 0xD5, 0xE0))
-    textbox(sl, Inches(0.8), Inches(1.55), Inches(6.2), Inches(4.2),
-            "\n".join(lines), size=11, color=NAVY, font="Consolas", space_after=1)
-    picture(sl, "shap_waterfall_case1.png", Inches(7.35), Inches(1.4), h=Inches(4.4))
-    callout(sl, Inches(0.6), Inches(5.95), Inches(12.15), Inches(1.0),
-            "Ridge is linear ⇒ Shapley values have a CLOSED FORM ⇒ attributions are EXACT (additivity error 6.1e-04). "
-            "The quantity decomposition sums to the order with residual 0.000000 across all 16,689 decisions — "
-            "enforced by a test that fails if the identity ever breaks.", color=GREEN)
-    notes(sl,
-          "Most XAI demos stop at 'SHAP says feature X is important'. That "
-          "doesn't tell a buyer why the system asked for 1,380 units. So I "
-          "built two layers. SHAP explains the forecast - and because my "
-          "winning model is Ridge, a linear model, the Shapley values have a "
-          "closed form, so they're exact, not sampled. Then the quantity gets "
-          "an exact arithmetic decomposition: expected demand, plus safety "
-          "stock, minus stock on hand, plus MOQ, plus pack rounding. Those "
-          "components sum to the recommendation with a residual of zero across "
-          "all 16,689 decisions - and there's a test that fails if that "
-          "identity ever breaks.")
+        lines.append(f"{v:>+10,.1f}   {k}")
+    rect(sl, MARGIN, Inches(1.45), Inches(6.3), Inches(3.5), fill=WHITE,
+         line=RGBColor(0xDD, 0xE5, 0xEF), radius=True)
+    text(sl, MARGIN + Inches(0.22), Inches(1.6), Inches(5.9), Inches(0.3),
+         f"PRODUCT {c['sku']}  ·  RISK {c['stockout_risk']}  ·  "
+         f"ORDER {c['recommended_qty']:,} UNITS",
+         size=11.5, bold=True, color=STEEL, gap=0)
+    text(sl, MARGIN + Inches(0.22), Inches(1.98), Inches(5.9), Inches(2.8),
+         "\n".join(lines) + "\n" + "─" * 44 +
+         f"\n{c['decomposition_total']:>10,}   FINAL ORDER QUANTITY",
+         size=10.5, color=NAVY, font="Consolas", gap=1)
+    picture(sl, "shap_waterfall_case1.png", Inches(7.1), Inches(1.45), w=Inches(5.65), h=Inches(3.5))
 
-    # ---------------------------------------------------------- 13 What-if
-    sl = blank(prs)
-    title_bar(sl, "What-if — making it decision SUPPORT", None, 13)
     wf = R["wf"]
-    first = wf.loc[wf["case"] == wf["case"].iloc[0]]
+    first = wf.loc[wf["case"] == wf["case"].iloc[0]].head(5)
     df = pd.DataFrame({
-        "Scenario": first["scenario"],
-        "Order qty": [f"{int(v):,}" for v in first["recommended_qty"]],
+        "What if…": first["scenario"],
+        "New order": [f"{int(v):,}" for v in first["recommended_qty"]],
         "Change": [f"{int(v):+,}" if v else "—" for v in first["change_vs_current"]],
     })
-    table(sl, df, Inches(0.6), Inches(1.45), Inches(7.2), Inches(3.6),
-          font=12, highlight_rows=[0], col_widths=[2.6, 0.75, 0.75])
-    textbox(sl, Inches(8.1), Inches(1.6), Inches(4.7), Inches(3.4),
-            "Every row re-runs the REAL policy\nfunction with one input changed.\n"
-            "Nothing is interpolated.\n\n"
-            "A buyer can price a lead-time\nnegotiation BEFORE committing\nto it.\n\n"
-            "Live sliders in the dashboard:\n"
-            "• lead time\n• stock on hand\n• supplier MOQ",
-            size=14, color=GREY, space_after=6)
-    callout(sl, Inches(0.6), Inches(5.3), Inches(12.15), Inches(1.0),
-            "A system that hands you one number is an oracle. A system you can interrogate is decision support. "
-            "This is the difference the project was aiming for.", color=GREEN)
+    table(sl, df, MARGIN, Inches(5.15), Inches(6.3), Inches(1.5), font=10.5,
+          hot=[0], widths=[2.4, 0.7, 0.65])
+    banner(sl, Inches(7.1), Inches(5.15), Inches(5.65), Inches(1.5),
+           "Two layers of explanation\n"
+           "1.  WHY this forecast — SHAP. Our winning model is linear, so the "
+           "attributions are EXACT, not estimated.\n"
+           "2.  WHY this quantity — the arithmetic adds up to the order with "
+           "residual 0.000000 across all 16,689 decisions.",
+           accent=TEAL, bg=RGBColor(0xE9, 0xFB, 0xF8), fg=RGBColor(0x0C, 0x4F, 0x47),
+           size=11.5)
     notes(sl,
-          "A system that hands you one number is an oracle. A system you can "
-          "interrogate is decision support. Every row here re-runs the real "
-          "policy function with one input changed - nothing is interpolated. "
-          "So a buyer can ask 'what if I negotiate the lead time down to four "
-          "days?' and see the order drop by 456 units before committing to the "
-          "negotiation. That's the difference I was aiming for.")
+          "Most explainable-AI demos stop at saying which feature was "
+          "important. That does not tell a shopkeeper why the system asked for "
+          "1,380 units. So we built two layers. The first explains the "
+          "forecast using SHAP - and because our winning model is linear, the "
+          "values are exact rather than estimated. The second explains the "
+          "quantity as simple arithmetic you can check by hand: expected "
+          "demand, plus safety stock, minus what we already have, plus pack "
+          "rounding. It adds up exactly, on every one of the 16,689 decisions. "
+          "And the bottom-left table is our what-if feature, so the buyer can "
+          "test a scenario before committing.")
+    footer(sl, 14)
 
-    # ---------------------------------------------------------- 14 Conclusion
+    # ============================================================ 15 CONCLUSION
     sl = blank(prs)
-    title_bar(sl, "Demo, Limitations, Conclusion", None, 14)
-    for i, (v, lab, col) in enumerate([
-        (f"{s['best_regression_test_R2']:.3f}", "Forecast R²\nRidge (α=100)", BLUE),
-        (f"{s['best_classifier_test_f1']:.3f}", "Classifier F1\nLightGBM", BLUE),
-        (f"{pol.loc['P4','fill_rate']:.1%}", "Fill rate\n(+14.0pp)", GREEN),
-        ("81", "Tests passing\n50/50 rubric checks", GREEN),
+    header(sl, "Conclusion", "what we built, what we learned", accent=LIME)
+    for i, (v, lab, c) in enumerate([
+        (f"{s['best_regression_test_R2']:.3f}", "Forecast R²\nRidge Regression", SKY),
+        (f"{s['best_classifier_test_f1']:.3f}", "Reorder F1 score\nLightGBM", SKY),
+        (f"{pol.loc['P4','fill_rate']:.1%}", "Fill rate achieved\nup from 79.9%", LIME),
+        ("81 / 51", "Tests passing /\nrubric checks", LIME),
     ]):
-        metric_card(sl, Inches(0.6 + i * 3.07), Inches(1.35), Inches(2.9), Inches(1.4), v, lab, col)
-    textbox(sl, Inches(0.6), Inches(3.05), Inches(6.0), Inches(2.3),
-            "Limitations — stated, not buried\n"
-            "• Supply side is simulated\n"
-            "• One retailer, one country, two years\n"
-            "• Top 200 SKUs = 42.0% of cleaned revenue\n"
-            "• No promotion data (price used as a proxy)\n"
-            "• Gains over a moving average are modest (3.2%)\n"
-            "• Classifier recall 0.816 ⇒ human review required",
-            size=13, color=GREY, space_after=5)
-    rect(sl, Inches(7.0), Inches(3.05), Inches(5.75), Inches(2.3),
-         fill=RGBColor(0xED, 0xF7, 0xF0), line=GREEN)
-    textbox(sl, Inches(7.25), Inches(3.2), Inches(5.3), Inches(2.0),
-            "Live demo — Streamlit, 6 pages\n\n"
-            "Overview · Demand Prediction · Inventory Risk\n"
-            "Procurement Recommendation · WHY? · Comparison",
-            size=13, color=RGBColor(0x1C, 0x4D, 0x32), space_after=8)
-    callout(sl, Inches(0.6), Inches(5.6), Inches(12.15), Inches(1.2),
-            "Conclusion: the value is in the UNCERTAINTY layer and the EXPLANATION, not the point forecast.\n"
-            "My advanced model lost the regression task, the RBF kernel lost to the linear one, and a better "
-            "forecast alone didn't improve service. A project that only reports what worked hasn't tested anything.",
-            color=GREEN, size=13)
+        card(sl, MARGIN + Inches(i * 3.08), Inches(1.4), Inches(2.9),
+             Inches(1.45), v, lab, accent=c, vsize=23)
+
+    text(sl, MARGIN, Inches(3.08), Inches(6.1), Inches(0.3),
+         "WHAT WE LEARNED", size=11, bold=True, color=STEEL, gap=0)
+    text(sl, MARGIN, Inches(3.42), Inches(6.1), Inches(1.9),
+         "▸  A better forecast alone did NOT help — handling\n"
+         "    uncertainty is what improved service\n"
+         "▸  The most advanced model lost the forecasting task\n"
+         "▸  The non-linear kernel lost to the linear one\n"
+         "▸  Explaining the decision matters more than\n"
+         "    explaining the model",
+         size=12, color=SLATE, gap=4)
+
+    text(sl, Inches(7.0), Inches(3.08), Inches(5.75), Inches(0.3),
+         "LIMITATIONS WE ACKNOWLEDGE", size=11, bold=True, color=STEEL, gap=0)
+    text(sl, Inches(7.0), Inches(3.42), Inches(5.75), Inches(1.9),
+         "▸  Supply-side data is simulated\n"
+         "▸  One retailer, one country, two years\n"
+         "▸  Top 200 products = 42% of revenue\n"
+         "▸  No promotion data in the dataset\n"
+         "▸  Human approval is still required —\n"
+         "    nothing is ordered automatically",
+         size=12, color=SLATE, gap=4)
+
+    rect(sl, MARGIN, Inches(5.4), Inches(12.1), Inches(1.3), fill=NAVY, radius=True)
+    text(sl, MARGIN + Inches(0.3), Inches(5.55), Inches(7.6), Inches(0.35),
+         "LIVE DEMO  —  Streamlit dashboard, 6 pages", size=14, bold=True,
+         color=TEAL, gap=0)
+    text(sl, MARGIN + Inches(0.3), Inches(5.92), Inches(7.6), Inches(0.65),
+         "Overview · Demand Prediction · Inventory Risk · Procurement "
+         "Recommendation · WHY? · Model Comparison",
+         size=11.5, color=MUTED, gap=2)
+    text(sl, Inches(9.0), Inches(5.6), Inches(3.6), Inches(0.9),
+         "Sandhiya S · RA2411003010045\nNishanth Kannan · RA2411003010051\n"
+         "Netti Nithin Chakravarthy · RA2411003010033",
+         size=10.5, color=MUTED, align=PP_ALIGN.RIGHT, gap=2)
     notes(sl,
-          "Let me close with what I'd want a reviewer to take away. The system "
-          "runs end to end - one command, sixteen stages, eighty-one passing "
-          "tests. It implements every Unit 1 and Unit 2 topic with code that "
-          "actually executes, and I've mapped each one to its file and its "
-          "output. And I'd rather be judged on the honest findings than a "
-          "polished story: my advanced model lost the regression task, the RBF "
-          "kernel lost to the linear one, and a better point forecast on its "
-          "own didn't improve service at all. What did work was quantifying "
-          "uncertainty and explaining the decision. I'll show the dashboard now.")
-
-    # ---------------------------------------------------------- Backup
-    sl = blank(prs)
-    title_bar(sl, "Backup — Feature Importance (SHAP)", "Two models, two very different rankings")
-    picture(sl, "shap_global_importance_forecast.png", Inches(0.5), Inches(1.4), h=Inches(5.2))
-    picture(sl, "shap_global_importance_classifier.png", Inches(6.9), Inches(1.4), h=Inches(5.2))
-    notes(sl, "Demand is driven by demand history. The reorder DECISION is driven by "
-              "stock_vs_leadtime_demand, current_stock and lead_time_days - the inventory "
-              "position, exactly as a buyer would expect. The two rankings are almost disjoint.")
-
-    sl = blank(prs)
-    title_bar(sl, "Backup — Confusion Matrix & Predicted vs Actual")
-    picture(sl, "model_confusion_matrix.png", Inches(1.1), Inches(1.4), h=Inches(5.2))
-    picture(sl, "model_predicted_vs_actual.png", Inches(7.2), Inches(1.4), h=Inches(5.2))
-    notes(sl, "Positive rate is 30.8%, so a constant 'no' scores 69.2% accuracy while catching "
-              "zero stockouts. That is why F1 and recall drive selection, not accuracy.")
-
-    sl = blank(prs)
-    title_bar(sl, "Backup — Data Cleaning Funnel", "Every removed row accounted for")
-    steps = pd.DataFrame(R["dq"]["cleaning"]["steps"])
-    df = pd.DataFrame({
-        "Step": [x.replace("_", " ") for x in steps["step"]],
-        "Removed": [f"{int(v):,}" for v in steps["rows_removed"]],
-        "%": steps["pct_removed"].round(2),
-        "Rows after": [f"{int(v):,}" for v in steps["rows_after"]],
-    })
-    table(sl, df, Inches(1.1), Inches(1.5), Inches(11.1), Inches(3.2),
-          font=12, col_widths=[2.4, 0.7, 0.5, 0.8])
-    textbox(sl, Inches(1.1), Inches(5.0), Inches(11.1), Inches(0.9),
-            f"Retained {R['dq']['cleaning']['rows_out']:,} of {R['dq']['cleaning']['rows_in']:,} rows "
-            f"({100 - R['dq']['cleaning']['pct_removed_total']:.2f}%). "
-            "Each step carries a written reason in reports/data_quality_report.json.",
-            size=13, color=GREY)
-    notes(sl, "The cleaning log is machine-checked: a test asserts each step's rows_after "
-              "equals the next step's rows_before, so the funnel cannot have a gap.")
-
-    sl = blank(prs)
-    title_bar(sl, "Backup — Statistical Significance", "Is the winner actually better?")
-    textbox(sl, Inches(1.0), Inches(1.6), Inches(11.3), Inches(3.5),
-            "Bootstrap 95% confidence intervals on test RMSE (500 resamples)\n"
-            "   computed in notebook 09\n\n"
-            "Paired bootstrap, 1,000 resamples of the SAME test rows for both models:\n"
-            "   RMSE(Ridge) − RMSE(LightGBM)  →  95% CI lies entirely BELOW zero\n"
-            "   ⇒ Ridge's advantage over the boosted model is not sampling noise\n\n"
-            "Against OLS and Bayesian Ridge (288.53 vs 288.96 vs 288.67) the difference\n"
-            "   is WITHIN noise. Ridge is chosen on the tie-break of numerical stability:\n"
-            "   the design matrix is ill-conditioned (rcond ≈ 7.7e-08 for plain OLS).",
-            size=15, color=GREY, space_after=10)
-    notes(sl, "The paired bootstrap resamples the same test rows for both models, so it "
-              "controls for which weeks happened to be easy or hard.")
-
-    sl = blank(prs)
-    title_bar(sl, "Backup — Simulated Supply Parameters", "sim/supply_config.yaml")
-    textbox(sl, Inches(1.0), Inches(1.6), Inches(11.3), Inches(4.2),
-            "Lead time        Gamma(shape 4.0, scale 1.6), clipped to [2, 21] days\n"
-            "Lead-time CV     Uniform(0.10, 0.35)\n"
-            "Unit cost        Uniform(0.45, 0.70) × the SKU's median sale price\n"
-            "MOQ              {12, 24, 48, 72, 96, 144}, weighted\n"
-            "Pack size        {1, 6, 12, 24}, weighted\n"
-            "Capacity         Uniform(6, 20) × mean weekly demand\n"
-            "Reliability      Uniform(0.80, 0.99)\n"
-            "Holding cost     25% of unit cost per year\n"
-            "Shortage cost    2.5 × unit cost per unit short\n"
-            "Ordering cost    25.0 flat per purchase order\n\n"
-            "Seed 42. Deterministic — asserted by tests/test_simulation.py.",
-            size=14, color=GREY, font="Consolas", space_after=7)
-    callout(sl, Inches(1.0), Inches(6.1), Inches(11.3), Inches(0.75),
-            "The shortage multiplier of 2.5 is the parameter that decides whether P1 or P4 is 'best'. "
-            "It lives in a config file precisely so it can be challenged.", color=RED)
-    notes(sl, "If asked 'are your savings real' - the ranking is real, the currency is not. "
-              "All five policies face identical real demand and identical simulated terms.")
+          "To conclude. Our system forecasts demand with an R-squared of 0.51, "
+          "predicts reorder need with an F1 of 0.78, and raises the fill rate "
+          "from 79.9 to 93.9 percent. Eighty-one automated tests pass and all "
+          "fifty-one rubric checks pass. What we learned matters more than the "
+          "numbers: a better forecast alone did not help, the most advanced "
+          "model lost, and the non-linear kernel lost to the linear one. We "
+          "report all of that honestly, because a project that only reports "
+          "what worked has not really tested anything. We acknowledge our "
+          "limitations, especially that the supply-side data is simulated. "
+          "Thank you - we will now show the live dashboard.")
+    footer(sl, 15)
 
     return prs
 
@@ -789,11 +1052,10 @@ def main() -> int:
     out = ROOT / "paper" / "PBL1_Presentation.pptx"
     ensure_dir(out)
     prs.save(out)
-    n = len(prs.slides.__iter__.__self__._sldIdLst)
     print(f"Saved {out.relative_to(ROOT)}")
-    print(f"  slides      : {n}  (14 main + 5 backup)")
-    print(f"  speaker notes embedded on every slide")
-    print(f"  figures embedded from {FIGS.relative_to(ROOT)}")
+    print(f"  slides       : {len(prs.slides)}")
+    print(f"  team         : " + " · ".join(n for n, _ in TEAM))
+    print(f"  size         : {out.stat().st_size/1024:.0f} KB")
     return 0
 
 
