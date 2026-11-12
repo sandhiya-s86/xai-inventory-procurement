@@ -98,6 +98,149 @@ def all_cases_reconcile() -> tuple[bool, str]:
 
 
 # (rubric criterion, check label, callable)
+# ---------------------------------------------------------- Unit 3/4 helpers
+# These check PROPERTIES, not just file existence. A findings file that exists
+# but records loglik_monotone = false means the maths broke, and the rubric
+# should fail on that rather than tick a box because the file was written.
+
+
+def _findings(rel: str) -> dict:
+    p = ROOT / rel
+    if not p.exists():
+        raise FileNotFoundError(rel)
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def json_subkeys(rel: str, section: str, keys: list[str]) -> tuple[bool, str]:
+    """A nested section exists and carries all the named keys."""
+    try:
+        block = _findings(rel).get(section, {})
+    except FileNotFoundError:
+        return False, f"MISSING: {rel}"
+    missing = [k for k in keys if k not in block]
+    if missing:
+        return False, f"{rel}[{section}] missing {missing}"
+    vals = ", ".join(f"{k}={block[k]}" for k in keys)
+    return True, f"{section}: {vals}"
+
+
+def flag_true(rel: str, section: str, key: str) -> tuple[bool, str]:
+    """A boolean guarantee recorded by the pipeline is actually True."""
+    try:
+        block = _findings(rel).get(section, {})
+    except FileNotFoundError:
+        return False, f"MISSING: {rel}"
+    if key not in block:
+        return False, f"{rel}[{section}][{key}] ABSENT"
+    val = bool(block[key])
+    return val, f"{section}.{key} = {val}"
+
+
+def positive_value(rel: str, section: str, key: str) -> tuple[bool, str]:
+    """A measured quantity exists and is strictly positive."""
+    try:
+        block = _findings(rel).get(section, {})
+    except FileNotFoundError:
+        return False, f"MISSING: {rel}"
+    if key not in block:
+        return False, f"{rel}[{section}][{key}] ABSENT"
+    val = float(block[key])
+    return val > 0, f"{section}.{key} = {val:.4f}"
+
+
+def em_bound_is_tight(tol: float = 1e-6) -> tuple[bool, str]:
+    """The EM lower bound must equal the log-likelihood at the E-step posterior.
+
+    This is the identity that proves EM's monotonicity, so the rubric checks
+    the measured gap rather than merely that the section was written.
+    """
+    try:
+        gm = _findings("reports/unit3_findings.json").get("gmm", {})
+    except FileNotFoundError:
+        return False, "MISSING: reports/unit3_findings.json"
+    gap = abs(float(gm.get("bound_gap_at_posterior", 1.0)))
+    loose = float(gm.get("bound_gap_at_uniform_q", 0.0))
+    if gap > tol:
+        return False, f"bound not tight at posterior: gap = {gap:.2e}"
+    if loose <= 0:
+        return False, "bound not strictly below for a wrong q"
+    return True, f"gap at posterior {gap:.2e}, at uniform q {loose:.3e}"
+
+
+def rotation_is_invariant(tol: float = 1e-6) -> tuple[bool, str]:
+    """Rotating W must move the loadings but not the likelihood."""
+    try:
+        fa = _findings("reports/unit3_findings.json").get("factor_analysis", {})
+    except FileNotFoundError:
+        return False, "MISSING: reports/unit3_findings.json"
+    dll = abs(float(fa.get("rotation_loglik_difference", 1.0)))
+    dw = float(fa.get("rotation_max_loading_difference", 0.0))
+    if dll > tol:
+        return False, f"likelihood moved under rotation: {dll:.2e}"
+    if dw <= 0.01:
+        return False, f"loadings barely moved ({dw:.3f}) -- not a real test"
+    return True, f"loadings moved {dw:.3f}, log-likelihood moved {dll:.2e}"
+
+
+def underflow_was_measured() -> tuple[bool, str]:
+    """The underflow point must be an observed T, not an assumption."""
+    try:
+        sc = _findings("reports/unit4_findings.json").get("scaling", {})
+    except FileNotFoundError:
+        return False, "MISSING: reports/unit4_findings.json"
+    fail_at = sc.get("unscaled_underflow_at_T")
+    ok_to = sc.get("unscaled_survives_to_T")
+    still = sc.get("scaled_still_finite_at_T")
+    if not fail_at:
+        return False, "no underflow point measured"
+    return True, (f"unscaled survives T={ok_to}, dies by T={fail_at}; "
+                  f"scaled still finite at T={still}")
+
+
+def sum_product_matches(tol: float = 1e-9) -> tuple[bool, str]:
+    """Sum-product must reproduce forward-backward to machine precision."""
+    try:
+        sp = _findings("reports/unit4_findings.json").get("sum_product", {})
+    except FileNotFoundError:
+        return False, "MISSING: reports/unit4_findings.json"
+    diffs = {k: float(v) for k, v in sp.items() if k.startswith(("max_abs", "abs_"))}
+    if not diffs:
+        return False, "no sum-product comparison recorded"
+    worst = max(diffs.values())
+    if worst > tol:
+        return False, f"largest discrepancy {worst:.2e} exceeds {tol:.0e}"
+    if not sp.get("max_product_path_matches_viterbi"):
+        return False, "max-product path does not match Viterbi"
+    return True, f"all differences <= {worst:.1e}; max-product == Viterbi"
+
+
+def dashboard_verified() -> tuple[bool, str]:
+    """Every dashboard page rendered in a real browser with no exceptions."""
+    p = ROOT / "reports" / "dashboard_verification.json"
+    if not p.exists():
+        return False, "MISSING: run scripts/verify_dashboard.py"
+    d = json.loads(p.read_text(encoding="utf-8"))
+    n, passed = d.get("n_pages", 0), d.get("n_passed", 0)
+    if not d.get("all_pages_passed"):
+        bad = [pg["page"] for pg in d.get("pages", []) if not pg.get("ok")]
+        return False, f"{passed}/{n} pages passed; failing: {bad}"
+    return True, f"{passed}/{n} pages render with zero exceptions"
+
+
+def pdf_has_pages(rel: str, minimum: int) -> tuple[bool, str]:
+    p = ROOT / rel
+    if not p.exists():
+        return False, f"MISSING: {rel}"
+    try:
+        from pypdf import PdfReader
+    except ImportError:
+        return True, f"{rel} ({p.stat().st_size/1024:.0f} KB; pypdf absent)"
+    n = len(PdfReader(str(p)).pages)
+    if n < minimum:
+        return False, f"{rel}: only {n} pages (need >= {minimum})"
+    return True, f"{rel}: {n} pages ({p.stat().st_size/1024:.0f} KB)"
+
+
 CHECKS: list[tuple[str, str, callable]] = [
     # ---- 1. Problem understanding & dataset familiarisation (4 marks)
     ("1. Problem Understanding", "Problem & scope documented",
@@ -222,6 +365,92 @@ CHECKS: list[tuple[str, str, callable]] = [
      lambda: exists("docs/erp_integration_ready.md")),
     ("12. Presentation", "Reproducible pipeline entry point",
      lambda: exists("scripts/run_pipeline.py")),
+
+    # ---------------------------------------------------- Unit 3 (unsupervised)
+    ("13. Unit 3 (unsupervised)", "Measuring dissimilarity: 5 metrics compared",
+     lambda: csv_has_rows("reports/unit3_dissimilarity_metrics.csv", 5)),
+    ("13. Unit 3 (unsupervised)", "K-means + elbow method over a range of k",
+     lambda: csv_has_rows("reports/unit3_kmeans_elbow.csv", 8)),
+    ("13. Unit 3 (unsupervised)", "PCA scree + explained variance",
+     lambda: csv_has_rows("reports/unit3_pca_scree.csv", 10)),
+    ("13. Unit 3 (unsupervised)", "Choosing latent dims: 3 rules reported",
+     lambda: json_subkeys("reports/unit3_findings.json", "pca_choice",
+                          ["kaiser", "variance", "elbow"])),
+    ("13. Unit 3 (unsupervised)", "Factor analysis loadings + varimax",
+     lambda: csv_has_rows("reports/unit3_factor_loadings.csv", 10)),
+    ("13. Unit 3 (unsupervised)", "FA rotational ambiguity demonstrated",
+     lambda: rotation_is_invariant()),
+    ("13. Unit 3 (unsupervised)", "Mixtures of Gaussians: BIC/AIC model selection",
+     lambda: csv_has_rows("reports/unit3_gmm_selection.csv", 4)),
+    ("13. Unit 3 (unsupervised)", "EM log-likelihood is monotonic (GMM)",
+     lambda: flag_true("reports/unit3_findings.json", "gmm", "loglik_monotone")),
+    ("13. Unit 3 (unsupervised)", "Alternative view of EM: bound tight at posterior",
+     lambda: em_bound_is_tight()),
+    ("13. Unit 3 (unsupervised)", "Hierarchical clustering: 4 linkage methods",
+     lambda: csv_has_rows("reports/unit3_hierarchical_linkages.csv", 4)),
+    ("13. Unit 3 (unsupervised)", "Evaluating clustering: internal + relative indices",
+     lambda: csv_has_rows("reports/unit3_clustering_evaluation.csv", 3)),
+    ("13. Unit 3 (unsupervised)", "Clustering agreement (ARI) between methods",
+     lambda: csv_has_rows("reports/unit3_clustering_agreement.csv", 3)),
+    ("13. Unit 3 (unsupervised)", "Segments written for the policy layer",
+     lambda: csv_has_rows("reports/unit3_segment_profiles.csv", 2)),
+    ("13. Unit 3 (unsupervised)", "Unit 3 figures",
+     lambda: figures_matching("unit3_*.png", 6)),
+
+    # ------------------------------------------------------ Unit 4 (sequential)
+    ("14. Unit 4 (sequential)", "Sequential data: autocorrelation computed",
+     lambda: csv_has_rows("reports/unit4_autocorrelation.csv", 30)),
+    ("14. Unit 4 (sequential)", "Order shown to carry information (chain rule)",
+     lambda: positive_value("reports/unit4_findings.json", "sequential",
+                            "order_information_gain_nats")),
+    ("14. Unit 4 (sequential)", "Markov transition matrix, rows sum to 1",
+     lambda: flag_true("reports/unit4_findings.json", "markov",
+                       "rows_sum_to_one")),
+    ("14. Unit 4 (sequential)", "k-step prediction + stationary distribution",
+     lambda: csv_has_rows("reports/unit4_markov_kstep.csv", 6)),
+    ("14. Unit 4 (sequential)", "Markov persistence tested against independence",
+     lambda: csv_has_rows("reports/unit4_markov_persistence.csv", 3)),
+    ("14. Unit 4 (sequential)", "HMM regimes learned by Baum-Welch",
+     lambda: csv_has_rows("reports/unit4_hmm_regimes.csv", 3)),
+    ("14. Unit 4 (sequential)", "Baum-Welch log-likelihood is monotonic",
+     lambda: flag_true("reports/unit4_findings.json", "hmm",
+                       "loglik_monotone")),
+    ("14. Unit 4 (sequential)", "Scaling factors: log p(x) = sum log c_t",
+     lambda: flag_true("reports/unit4_findings.json", "scaling",
+                       "loglik_equals_sum_log_c")),
+    ("14. Unit 4 (sequential)", "Scaling: underflow point actually measured",
+     lambda: underflow_was_measured()),
+    ("14. Unit 4 (sequential)", "Forward-backward posteriors normalised",
+     lambda: flag_true("reports/unit4_findings.json", "forward_backward",
+                       "gamma_normalised")),
+    ("14. Unit 4 (sequential)", "Viterbi vs posterior decoding compared",
+     lambda: csv_has_rows("reports/unit4_decoder_comparison.csv", 1)),
+    ("14. Unit 4 (sequential)", "Sum-product verified == forward-backward",
+     lambda: sum_product_matches()),
+    ("14. Unit 4 (sequential)", "Kalman filter beats a naive random walk",
+     lambda: positive_value("reports/unit4_findings.json", "lds",
+                            "rmse_improvement_pct")),
+    ("14. Unit 4 (sequential)", "RTS smoothing never increases variance",
+     lambda: flag_true("reports/unit4_findings.json", "lds",
+                       "smoothed_var_never_exceeds_filtered")),
+    ("14. Unit 4 (sequential)", "Regimes feed the procurement decision",
+     lambda: csv_has_rows("reports/unit4_regime_safety_multipliers.csv", 3)),
+    ("14. Unit 4 (sequential)", "Unit 4 figures",
+     lambda: figures_matching("unit4_*.png", 4)),
+
+    # -------------------------------------------------- Unit 3/4 verification
+    ("15. Unit 3/4 verification", "Unit 3 test suite",
+     lambda: exists("tests/test_unit3_unsupervised.py")),
+    ("15. Unit 3/4 verification", "Unit 4 test suite",
+     lambda: exists("tests/test_unit4_sequential.py")),
+    ("15. Unit 3/4 verification", "Dashboard verified in a real browser",
+     lambda: dashboard_verified()),
+    ("15. Unit 3/4 verification", "Unit 3/4 results report (PDF)",
+     lambda: pdf_has_pages("paper/Unit3_Unit4_Results_Report.pdf", 12)),
+    ("15. Unit 3/4 verification", "Unit 3/4 study guide (PDF)",
+     lambda: pdf_has_pages("paper/Unit3_Unit4_Study_Guide.pdf", 12)),
+    ("15. Unit 3/4 verification", "Unit 3/4 write-up",
+     lambda: exists("docs/unit3-unit4.md")),
 ]
 
 

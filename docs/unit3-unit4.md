@@ -104,7 +104,13 @@ breaking point: the naive recursion survives T = 900 and is dead by **T =
 
 ```
 239 tests passing  =  81 (Units 1–2)  +  79 (Unit 3)  +  79 (Unit 4)
+ 87 rubric checks  =  51 (Units 1–2)  +  36 (Units 3–4)
 ```
+
+`scripts/check_pbl1_completeness.py` was extended to audit Units 3 and 4. The
+new checks test **properties, not file existence**: a findings file that exists
+but records `loglik_monotone = false`, or a sum–product discrepancy above
+1e-9, fails the rubric rather than ticking a box because the file was written.
 
 Two identities worth singling out, both measured rather than asserted:
 
