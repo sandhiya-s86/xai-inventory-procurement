@@ -20,3 +20,11 @@ pytest==9.0.1
 jupyter==1.1.1
 nbformat==5.10.4
 nbclient==0.10.2
+
+# Unit 3/4 deliverables: PDF generation + browser verification of the dashboard.
+# Playwright also needs its browser binary once:
+#   .venv\Scripts\python -m playwright install chromium
+reportlab==5.1.0
+playwright==1.65.1
+pymupdf==2.1
+pypdf==7.0.1

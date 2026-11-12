@@ -1,0 +1,2 @@
+max_abs_diff_forward_message_vs_alpha,max_abs_diff_backward_message_vs_beta,max_abs_diff_belief_vs_gamma,max_abs_diff_pairwise_vs_xi,abs_diff_logpartition_vs_loglik,max_product_path_matches_viterbi,abs_diff_map_logprob
+0.0,0.0,0.0,0.0,0.0,True,0.0

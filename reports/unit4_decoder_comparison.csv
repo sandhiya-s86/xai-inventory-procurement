@@ -1,0 +1,2 @@
+n_timesteps,n_disagreements,disagreement_rate,viterbi_logprob,posterior_path_logprob,logprob_advantage_viterbi,posterior_path_is_impossible,viterbi_n_switches,posterior_n_switches
+604,21,0.0347682119205298,-514.6216637198796,-536.2257983418308,21.604134621951175,False,8,12

@@ -1,0 +1,4 @@
+method_a,method_b,adjusted_rand_index
+K-means,GMM (hard assignment),0.5964657426499306
+K-means,Hierarchical (Ward),0.8390229844911326
+GMM (hard assignment),Hierarchical (Ward),0.5877287045553091

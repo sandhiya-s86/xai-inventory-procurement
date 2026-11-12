@@ -1,0 +1,215 @@
+{
+  "n_days": 604,
+  "train_end": "2011-05-15",
+  "n_train_days": 427,
+  "n_test_days": 177,
+  "sequential": {
+    "n_significant_lags": 29,
+    "acf_lag1": 0.44860083939068596,
+    "acf_lag7": 0.22166457931530512,
+    "acf_lag14": 0.11462880799341474,
+    "adf_statistic": -3.3491377055796234,
+    "adf_pvalue": 0.01281989633307511,
+    "adf_stationary": true,
+    "block_std_ratio": 2.5188541739681134,
+    "iid_loglik_per_day": -9.62948749683807,
+    "ar7_loglik_per_day": -9.450180516950908,
+    "order_information_gain_nats": 0.17930697988716204,
+    "n_rolling_origin_splits": 5
+  },
+  "markov": {
+    "state_cutpoints": [
+      3307.5,
+      4643.0,
+      6695.5
+    ],
+    "persistence_lift": [
+      1.6080385039457588,
+      1.2872869652750576,
+      1.22825434016234,
+      1.9638672111800402
+    ],
+    "independence_chi2": 63.00043740343861,
+    "independence_dof": 9,
+    "independence_pvalue": 3.527262235032904e-10,
+    "state_names": [
+      "LOW",
+      "MEDIUM",
+      "HIGH",
+      "PEAK"
+    ],
+    "rows_sum_to_one": true,
+    "stationary_distribution": [
+      0.2522703134054892,
+      0.2491711060809162,
+      0.25109719124827834,
+      0.24746138926531625
+    ],
+    "stationary_fixed_point_error": 5.551115123125783e-17,
+    "k_steps_to_stationary": 5,
+    "states": [
+      {
+        "state": 0,
+        "state_name": "LOW",
+        "empirical_freq": 0.2505854800936768,
+        "stationary_prob": 0.2522703134054892,
+        "self_transition": 0.4056603773584906,
+        "expected_run_length": 1.6825396825396826,
+        "recurrent": true
+      },
+      {
+        "state": 1,
+        "state_name": "MEDIUM",
+        "empirical_freq": 0.24824355971896955,
+        "stationary_prob": 0.2491711060809162,
+        "self_transition": 0.32075471698113206,
+        "expected_run_length": 1.472222222222222,
+        "recurrent": true
+      },
+      {
+        "state": 2,
+        "state_name": "HIGH",
+        "empirical_freq": 0.2505854800936768,
+        "stationary_prob": 0.25109719124827834,
+        "self_transition": 0.308411214953271,
+        "expected_run_length": 1.4459459459459458,
+        "recurrent": true
+      },
+      {
+        "state": 3,
+        "state_name": "PEAK",
+        "empirical_freq": 0.2505854800936768,
+        "stationary_prob": 0.24746138926531625,
+        "self_transition": 0.48598130841121495,
+        "expected_run_length": 1.9454545454545458,
+        "recurrent": true
+      }
+    ]
+  },
+  "hmm": {
+    "n_regimes": 3,
+    "n_iter": 44,
+    "converged": true,
+    "loglik_first": -367.284494991946,
+    "loglik_final": -329.2032042542706,
+    "loglik_monotone": true,
+    "regimes": [
+      {
+        "state": 0,
+        "rank_by_mean": 0,
+        "label": "QUIET",
+        "mean_log1p_demand": 8.190492060582356,
+        "mean_demand_units": 3605.496424656986,
+        "std_log1p": 0.6005619766966988,
+        "self_transition": 0.9905364036207142,
+        "expected_duration_days": 105.66807373450806,
+        "stationary_prob": 0.42144155208099976
+      },
+      {
+        "state": 1,
+        "rank_by_mean": 1,
+        "label": "NORMAL",
+        "mean_log1p_demand": 8.447897271351378,
+        "mean_demand_units": 4664.252654237813,
+        "std_log1p": 0.42604568632006407,
+        "self_transition": 0.9874870496559065,
+        "expected_duration_days": 79.91720357717483,
+        "stationary_prob": 0.47571429242658236
+      },
+      {
+        "state": 2,
+        "rank_by_mean": 2,
+        "label": "SURGE",
+        "mean_log1p_demand": 9.131846730203835,
+        "mean_demand_units": 9244.079381448024,
+        "std_log1p": 0.4858796457249751,
+        "self_transition": 0.9421203546439271,
+        "expected_duration_days": 17.277230947910027,
+        "stationary_prob": 0.10284415549241784
+      }
+    ]
+  },
+  "scaling": {
+    "real_sequence_length": 604,
+    "unscaled_loglik_at_real_T": -499.9988127014505,
+    "unscaled_underflowed_at_real_T": false,
+    "unscaled_survives_to_T": 900,
+    "unscaled_underflow_at_T": 1000,
+    "scaled_still_finite_at_T": 3600,
+    "scaled_loglik": -499.9988127014505,
+    "loglik_equals_sum_log_c": true,
+    "alpha_normalised": true
+  },
+  "forward_backward": {
+    "gamma_normalised": true,
+    "xi_normalised": true,
+    "filter_smooth_disagreements": 134,
+    "filter_smooth_disagreement_rate": 0.22185430463576158,
+    "mean_filtered_confidence": 0.8586751785041556,
+    "mean_smoothed_confidence": 0.897940853172313
+  },
+  "viterbi": {
+    "n_timesteps": 604,
+    "n_disagreements": 21,
+    "disagreement_rate": 0.0347682119205298,
+    "viterbi_logprob": -514.6216637198796,
+    "posterior_path_logprob": -536.2257983418308,
+    "logprob_advantage_viterbi": 21.604134621951175,
+    "posterior_path_is_impossible": false,
+    "viterbi_n_switches": 8,
+    "posterior_n_switches": 12
+  },
+  "sum_product": {
+    "max_abs_diff_forward_message_vs_alpha": 0.0,
+    "max_abs_diff_backward_message_vs_beta": 0.0,
+    "max_abs_diff_belief_vs_gamma": 0.0,
+    "max_abs_diff_pairwise_vs_xi": 0.0,
+    "abs_diff_logpartition_vs_loglik": 0.0,
+    "max_product_path_matches_viterbi": true,
+    "abs_diff_map_logprob": 0.0
+  },
+  "lds": {
+    "q": 0.002732156127281517,
+    "r": 0.3310082715893129,
+    "loglik": -514.4215008941017,
+    "signal_to_noise": 0.008254041852680182,
+    "steady_state_gain": 0.08681842510811856,
+    "test_rmse_kalman": 0.5916614273342831,
+    "test_rmse_naive_rw": 0.7914323073854873,
+    "rmse_improvement_pct": 25.24168879473109,
+    "smoothed_var_never_exceeds_filtered": true,
+    "mean_filtered_var": 0.030015215404526903,
+    "mean_smoothed_var": 0.015294300146991667
+  },
+  "decision_integration": {
+    "regimes": [
+      {
+        "regime": "QUIET",
+        "n_days": 254,
+        "share_of_days": 0.4205298013245033,
+        "mean_demand": 4444.842519685039,
+        "std_demand": 2591.6524671786187,
+        "safety_multiplier_vs_pooled": 0.720568442405893
+      },
+      {
+        "regime": "NORMAL",
+        "n_days": 261,
+        "share_of_days": 0.43211920529801323,
+        "mean_demand": 5435.314176245211,
+        "std_demand": 2418.8054667475053,
+        "safety_multiplier_vs_pooled": 0.672511036772812
+      },
+      {
+        "regime": "SURGE",
+        "n_days": 89,
+        "share_of_days": 0.14735099337748345,
+        "mean_demand": 10228.91011235955,
+        "std_demand": 5124.092436255517,
+        "safety_multiplier_vs_pooled": 1.424673775630111
+      }
+    ],
+    "pooled_sigma": 3596.6777264424695,
+    "multiplier_spread": 2.118439248918074,
+    "note": "filtered (not smoothed) posterior used -- smoothing would leak future data"
+  }
+}

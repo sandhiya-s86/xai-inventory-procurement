@@ -1,0 +1,263 @@
+{
+  "n_skus": 200,
+  "n_profile_features": 13,
+  "train_end": "2011-05-15",
+  "profile_columns": [
+    "mean_demand",
+    "std_demand",
+    "cv_demand",
+    "zero_rate",
+    "adi",
+    "spikiness",
+    "trend_slope",
+    "weekend_ratio",
+    "q4_ratio",
+    "acf_lag7",
+    "return_rate",
+    "median_price",
+    "revenue_share"
+  ],
+  "dissimilarity_metrics": [
+    {
+      "metric": "euclidean",
+      "mean_distance": 4.381688582303422,
+      "std_distance": 2.6327663082855426,
+      "min_distance": 0.0,
+      "max_distance": 17.862032697343555,
+      "spearman_vs_euclidean": 1.0
+    },
+    {
+      "metric": "manhattan",
+      "mean_distance": 10.932530547928415,
+      "std_distance": 5.962865075927528,
+      "min_distance": 0.0,
+      "max_distance": 43.12406031884002,
+      "spearman_vs_euclidean": 0.9782658527537909
+    },
+    {
+      "metric": "chebyshev",
+      "mean_distance": 2.9591103936309597,
+      "std_distance": 2.205382110387536,
+      "min_distance": 0.0,
+      "max_distance": 12.995723410572802,
+      "spearman_vs_euclidean": 0.9513042493092309
+    },
+    {
+      "metric": "cosine",
+      "mean_distance": 0.9777390647528639,
+      "std_distance": 0.3978488169369931,
+      "min_distance": 3.3306690738754696e-16,
+      "max_distance": 1.9018230680631794,
+      "spearman_vs_euclidean": 0.5884242019862564
+    },
+    {
+      "metric": "correlation",
+      "mean_distance": 0.987887215093649,
+      "std_distance": 0.40598286648826026,
+      "min_distance": 0.0,
+      "max_distance": 1.920287913046296,
+      "spearman_vs_euclidean": 0.48755565633596815
+    }
+  ],
+  "pca_choice": {
+    "kaiser": 5,
+    "variance": 8,
+    "elbow": 1,
+    "variance_threshold": 0.9,
+    "n_features": 13
+  },
+  "n_latent": 5,
+  "pca_variance_captured": 0.7322671914094894,
+  "pca_reconstruction_mse": 0.26773280859051063,
+  "factor_analysis": {
+    "n_factors": 5,
+    "loglik": -3081.6731367256116,
+    "n_iter": 2378,
+    "converged": true,
+    "loglik_monotone": true,
+    "n_parameters": 81,
+    "mean_communality": 0.6119998681046255,
+    "rotation_loglik_original": -3081.6731367256116,
+    "rotation_loglik_rotated": -3081.6731367256116,
+    "rotation_loglik_difference": 0.0,
+    "rotation_max_covariance_difference": 6.661338147750939e-16,
+    "rotation_max_loading_difference": 1.4197134207941855,
+    "rotation_n_free_rotations": 10
+  },
+  "kmeans": {
+    "k_elbow": 5,
+    "inertia": 1447.9586646806238,
+    "n_iter": 9,
+    "inertia_monotone": true
+  },
+  "gmm": {
+    "k_bic": 5,
+    "fitted_in": "PCA latent space",
+    "loglik_first": -1255.890663822494,
+    "loglik_final": -1105.5093254352664,
+    "n_iter": 28,
+    "loglik_monotone": true,
+    "bound_gap_at_posterior": 2.2737367544323206e-13,
+    "kl_at_posterior": -3.6455980001754603e-16,
+    "bound_gap_at_mild_q": 182105650.98867977,
+    "kl_at_mild_q": 182105650.98867974,
+    "bound_gap_at_uniform_q": 1821056913.9150274,
+    "kl_at_uniform_q": 1821056913.9150274,
+    "n_ambiguous_skus": 31,
+    "mean_max_responsibility": 0.9502296771207813
+  },
+  "hierarchical": {
+    "linkages": [
+      {
+        "linkage": "single",
+        "metric": "euclidean",
+        "n_clusters": 5,
+        "cophenetic_corr": 0.87858452586182,
+        "silhouette": 0.5940990355283142,
+        "largest_cluster_share": 0.97,
+        "smallest_cluster_size": 1,
+        "merge_height_max": 9.143023060405179,
+        "ari_vs_ward": 0.07372748408752977
+      },
+      {
+        "linkage": "complete",
+        "metric": "euclidean",
+        "n_clusters": 5,
+        "cophenetic_corr": 0.8496206170764684,
+        "silhouette": 0.5273365469787589,
+        "largest_cluster_share": 0.935,
+        "smallest_cluster_size": 1,
+        "merge_height_max": 17.862032697343555,
+        "ari_vs_ward": 0.18730615471179193
+      },
+      {
+        "linkage": "average",
+        "metric": "euclidean",
+        "n_clusters": 5,
+        "cophenetic_corr": 0.9306365334037092,
+        "silhouette": 0.5940990355283142,
+        "largest_cluster_share": 0.97,
+        "smallest_cluster_size": 1,
+        "merge_height_max": 13.756697026962259,
+        "ari_vs_ward": 0.07372748408752977
+      },
+      {
+        "linkage": "ward",
+        "metric": "euclidean",
+        "n_clusters": 5,
+        "cophenetic_corr": 0.4947020814471632,
+        "silhouette": 0.2703264331887723,
+        "largest_cluster_share": 0.645,
+        "smallest_cluster_size": 3,
+        "merge_height_max": 27.088488529967034,
+        "ari_vs_ward": 1.0
+      }
+    ],
+    "best_by_cophenetic": "average",
+    "chaining_methods": [
+      "single",
+      "complete",
+      "average"
+    ],
+    "cut_taken_from": "ward"
+  },
+  "clustering_evaluation": [
+    {
+      "method": "K-means",
+      "n_clusters": 5,
+      "silhouette": 0.288616446778867,
+      "davies_bouldin": 1.16879670008266,
+      "calinski_harabasz": 38.78702926178298,
+      "largest_cluster_share": 0.645,
+      "smallest_cluster_size": 3
+    },
+    {
+      "method": "GMM (hard assignment)",
+      "n_clusters": 5,
+      "silhouette": 0.25632345655397537,
+      "davies_bouldin": 1.5265363998868466,
+      "calinski_harabasz": 29.101258618641435,
+      "largest_cluster_share": 0.625,
+      "smallest_cluster_size": 3
+    },
+    {
+      "method": "Hierarchical (Ward)",
+      "n_clusters": 5,
+      "silhouette": 0.2703264331887723,
+      "davies_bouldin": 1.188441966644236,
+      "calinski_harabasz": 37.19244275526392,
+      "largest_cluster_share": 0.645,
+      "smallest_cluster_size": 3
+    }
+  ],
+  "clustering_agreement": [
+    {
+      "method_a": "K-means",
+      "method_b": "GMM (hard assignment)",
+      "adjusted_rand_index": 0.5964657426499306
+    },
+    {
+      "method_a": "K-means",
+      "method_b": "Hierarchical (Ward)",
+      "adjusted_rand_index": 0.8390229844911326
+    },
+    {
+      "method_a": "GMM (hard assignment)",
+      "method_b": "Hierarchical (Ward)",
+      "adjusted_rand_index": 0.5877287045553091
+    }
+  ],
+  "best_clustering_method": "K-means",
+  "segments": [
+    {
+      "segment": 0,
+      "name": "High-volume sells-daily",
+      "n_skus": 129,
+      "mean_demand": 28.78263711126845,
+      "cv_demand": 2.2639284711977536,
+      "adi": 1.312113721396405,
+      "q4_ratio": 1.5881286175292613,
+      "revenue_share": 0.6418755163529716
+    },
+    {
+      "segment": 1,
+      "name": "Mid-volume erratic",
+      "n_skus": 10,
+      "mean_demand": 7.267915690866511,
+      "cv_demand": 9.295586828158736,
+      "adi": 41.935394226799545,
+      "q4_ratio": 0.9640754602414555,
+      "revenue_share": 0.019973616294675704
+    },
+    {
+      "segment": 2,
+      "name": "Mid-volume weekly-cyclical",
+      "n_skus": 50,
+      "mean_demand": 12.839203747072599,
+      "cv_demand": 2.909347043219971,
+      "adi": 3.3697826178190358,
+      "q4_ratio": 14.102451355750476,
+      "revenue_share": 0.18439235588738243
+    },
+    {
+      "segment": 3,
+      "name": "Dormant (no sales in window)",
+      "n_skus": 3,
+      "mean_demand": 0.0,
+      "cv_demand": 0.0,
+      "adi": 427.0,
+      "q4_ratio": 0.0,
+      "revenue_share": 0.0
+    },
+    {
+      "segment": 4,
+      "name": "High-volume fast-moving",
+      "n_skus": 8,
+      "mean_demand": 133.57347775175643,
+      "cv_demand": 2.470560825982198,
+      "adi": 1.3045489373081391,
+      "q4_ratio": 4.899695043004888,
+      "revenue_share": 0.15375851146497033
+    }
+  ]
+}

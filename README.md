@@ -1,6 +1,6 @@
 # Explainable AI-Driven Decision Support for Predictive Inventory and Procurement Optimization in ERP Systems
 
-**PBL-1 · Machine Learning (Units 1 & 2)**
+**PBL-1 · Machine Learning (Units 1–4)**
 
 An end-to-end system that turns 1,067,371 real retail transactions into
 auditable purchase recommendations — and explains every one of them.
@@ -44,7 +44,10 @@ Historical sales  →  Cleaning  →  EDA  →  Features  →  Regression (7-day
 | **Uncertainty** | LightGBM quantiles, P90 coverage **89.2%** (target 90%) |
 | **Service gain** | Fill rate **79.9% → 93.9%** (+14.0pp), stockout days −75% |
 | **Explanation integrity** | Decomposition residual **0.000000** across 16,689 decisions |
-| **Verification** | **81 tests passing**, 16 pipeline stages, 10 executed notebooks |
+| **Demand regimes (Unit 4)** | HMM finds QUIET / NORMAL / **SURGE**; SURGE lands on the Christmas peak in both years |
+| **Regime-aware buffers** | Volatility differs **2.1×** across regimes — a pooled safety stock is wrong in both directions |
+| **SKU segments (Unit 3)** | **5 segments** from 13 behavioural features; 31 SKUs sit genuinely between them |
+| **Verification** | **239 tests passing**, 20 pipeline stages, 10 notebooks, **8/8 dashboard pages** Playwright-verified |
 
 Three findings reported because they are true, not because they flatter:
 
@@ -56,6 +59,44 @@ Three findings reported because they are true, not because they flatter:
   lies outside the training range.
 - **The RBF kernel lost to the linear kernel** (SVM F1 0.718 vs 0.748) with
   identical C, features and subsample.
+- **The best dendrogram was the worst partition.** Average linkage scored the
+  highest cophenetic correlation (0.931) while putting 97% of SKUs in one
+  cluster — chaining. Ward scored worst (0.495) and was the only usable cut.
+- **This series does not actually underflow.** At T = 604 the raw forward
+  product is ~1e-217, above float64's floor; the naive recursion only dies at
+  T = 1,000. Reported rather than claiming a textbook underflow that did not
+  happen.
+
+---
+
+## Units 3 & 4 — unsupervised learning and sequential models
+
+Full write-up: **[`docs/unit3-unit4.md`](docs/unit3-unit4.md)**
+
+| | |
+|---|---|
+| **Unit 3** — `src/xaierp/unsupervised/` | measuring dissimilarity · K-means + elbow · mixtures of Gaussians · EM + the alternative view of EM · factor analysis + varimax · PCA + choosing latent dimensions · hierarchical clustering · evaluating clustering output |
+| **Unit 4** — `src/xaierp/sequential/` | sequential data · Markov models · HMMs · Baum–Welch · forward–backward · scaling factors · Viterbi · sum–product · linear dynamical systems (Kalman + RTS) |
+
+Every algorithm is written from first principles and pinned against either
+scikit-learn / SciPy or **brute-force enumeration over all `N^T` state paths**,
+so "from scratch" does not quietly become "from scratch and wrong".
+
+**Deliverables**
+
+- [`paper/Unit3_Unit4_Results_Report.pdf`](paper/Unit3_Unit4_Results_Report.pdf) — 18-page results report; every number read live from the findings JSON
+- [`paper/Unit3_Unit4_Study_Guide.pdf`](paper/Unit3_Unit4_Study_Guide.pdf) — 17-page study guide, all 17 topics split evenly across the team of 3
+- Dashboard pages **7 · SKU Segmentation** and **8 · Demand Regimes**
+
+```bash
+.venv\Scripts\python scriptsun_unsupervised.py   # Unit 3
+.venv\Scripts\python scriptsun_sequential.py     # Unit 4
+.venv\Scripts\python scriptsuild_unit34_docs.py  # the two PDFs
+.venv\Scripts\python scriptserify_dashboard.py   # drive all 8 pages in Chromium
+```
+
+> Unit 5 is **not** covered — the Drive link supplied for it returns HTTP 401
+> without authentication, so its syllabus could not be read.
 
 ---
 

@@ -70,6 +70,20 @@ def load_features_df() -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
+def load_segments_df() -> pd.DataFrame:
+    """Unit 3 output: one row per SKU with its segment and profile."""
+    p = resolve(CFG["paths"]["processed"]) / "sku_segments.parquet"
+    return pd.read_parquet(p) if p.exists() else pd.DataFrame()
+
+
+@st.cache_data(show_spinner=False)
+def load_regimes_df() -> pd.DataFrame:
+    """Unit 4 output: one row per trading day with regime and Kalman level."""
+    p = resolve(CFG["paths"]["processed"]) / "demand_regimes.parquet"
+    return pd.read_parquet(p) if p.exists() else pd.DataFrame()
+
+
+@st.cache_data(show_spinner=False)
 def read_json(name: str) -> dict:
     p = REPORTS / name
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
@@ -114,6 +128,8 @@ page = st.sidebar.radio(
         "4 · Procurement Recommendation",
         "5 · WHY?  (Explainability)",
         "6 · Model Comparison",
+        "7 · SKU Segmentation (Unit 3)",
+        "8 · Demand Regimes (Unit 4)",
     ],
 )
 st.sidebar.markdown("---")
@@ -468,3 +484,354 @@ elif page.startswith("6"):
         if p.exists():
             st.subheader(title)
             st.image(str(p), use_container_width=True)
+
+
+# ================================================================ PAGE 7
+elif page.startswith("7"):
+    st.title("SKU Segmentation — Unit 3 (unsupervised learning)")
+    seg = load_segments_df()
+    if guard(seg, "SKU segments", "python scripts/run_unsupervised.py"):
+        find = read_json("unit3_findings.json")
+        st.caption(
+            "Segments are learned from the **train period only** — the "
+            f"profiles use data up to {find.get('train_end', 'the train cut-off')}, "
+            "so a segment-based safety stock applied to the test period is not "
+            "peeking at its own answer."
+        )
+
+        c = st.columns(4)
+        c[0].metric("SKUs segmented", f"{len(seg):,}")
+        c[1].metric("Segments found", f"{seg['segment'].nunique()}")
+        c[2].metric("Profile features", f"{find.get('n_profile_features', '—')}")
+        c[3].metric("Latent dimensions (PCA)", f"{find.get('n_latent', '—')}")
+
+        st.subheader("Segment profiles")
+        prof = read_csv("unit3_segment_profiles.csv")
+        if not prof.empty:
+            st.dataframe(
+                prof[[
+                    "segment", "segment_name", "n_skus", "mean_demand",
+                    "cv_demand", "zero_rate", "adi", "q4_ratio",
+                    "revenue_share_total",
+                ]].round(3),
+                hide_index=True, use_container_width=True,
+            )
+            st.caption(
+                "Each segment is named after the behavioural axis on which it "
+                "is most extreme relative to the others — not by fixed "
+                "thresholds, which stop meaning anything if the data changes."
+            )
+
+        left, right = st.columns(2)
+        with left:
+            st.subheader("Segments in the PCA latent space")
+            if {"pc1", "pc2"} <= set(seg.columns):
+                st.scatter_chart(
+                    seg, x="pc1", y="pc2", color="segment_name", height=380
+                )
+        with right:
+            st.subheader("How many clusters? (elbow method)")
+            elbow = read_csv("unit3_kmeans_elbow.csv")
+            if not elbow.empty:
+                st.line_chart(elbow.set_index("k")["inertia"], height=380)
+                st.caption(
+                    "Inertia always falls as k rises, so the minimum is never "
+                    "the answer. The elbow — the point furthest from the chord "
+                    "joining the ends — is at k = "
+                    f"{find.get('kmeans', {}).get('k_elbow', '—')}."
+                )
+
+        st.subheader("Which clustering method, and do they agree?")
+        c1, c2 = st.columns([3, 2])
+        with c1:
+            ev = read_csv("unit3_clustering_evaluation.csv")
+            if not ev.empty:
+                st.dataframe(ev.round(4), hide_index=True, use_container_width=True)
+                st.caption(
+                    "Silhouette and Calinski-Harabasz both reward compact "
+                    "spherical clusters — exactly what K-means produces by "
+                    "construction — so they cannot settle the comparison on "
+                    "their own. The agreement table beside them is the check."
+                )
+        with c2:
+            ag = read_csv("unit3_clustering_agreement.csv")
+            if not ag.empty:
+                st.dataframe(ag.round(3), hide_index=True, use_container_width=True)
+                st.caption(
+                    "Adjusted Rand Index: 1 = identical partitions, 0 = chance. "
+                    "Immune to cluster relabelling."
+                )
+
+        st.subheader("Hard vs soft assignment: what K-means throws away")
+        gmm = find.get("gmm", {})
+        n_amb = gmm.get("n_ambiguous_skus")
+        if n_amb is not None:
+            st.info(
+                "The Gaussian mixture gives every SKU a *responsibility* per "
+                f"component instead of one label. **{n_amb} of {len(seg)} SKUs "
+                "have no component above 90% responsibility** — they sit "
+                "genuinely between segments. K-means reports them as "
+                "confidently belonging to one, which for a stocking decision "
+                "is a false certainty."
+            )
+        if "gmm_max_responsibility" in seg.columns:
+            amb = seg.nsmallest(12, "gmm_max_responsibility")
+            st.dataframe(
+                amb[["stock_code", "description", "segment_name",
+                     "gmm_max_responsibility", "silhouette"]].round(3),
+                hide_index=True, use_container_width=True,
+            )
+            st.caption("The 12 least confidently assigned SKUs.")
+
+        st.subheader("Choosing the number of latent dimensions")
+        c1, c2 = st.columns(2)
+        with c1:
+            scree = read_csv("unit3_pca_scree.csv")
+            if not scree.empty:
+                st.line_chart(
+                    scree.set_index("component")[
+                        ["eigenvalue", "cumulative_variance_ratio"]
+                    ],
+                    height=300,
+                )
+        with c2:
+            choice = find.get("pca_choice", {})
+            if choice:
+                st.dataframe(
+                    pd.DataFrame(
+                        {
+                            "rule": ["Kaiser (eigenvalue > 1)",
+                                     "90% cumulative variance",
+                                     "scree elbow"],
+                            "components": [choice.get("kaiser"),
+                                           choice.get("variance"),
+                                           choice.get("elbow")],
+                        }
+                    ),
+                    hide_index=True, use_container_width=True,
+                )
+                st.caption(
+                    "The three published rules disagree. All three are "
+                    "reported rather than quoting whichever gives a "
+                    "convenient number; the pipeline uses Kaiser."
+                )
+
+        for title, fname, note in [
+            ("Dendrogram — hierarchical clustering", "unit3_05_dendrogram.png",
+             "Cut height determines the number of clusters. Single and average "
+             "linkage score highest on dendrogram fidelity yet put 97% of SKUs "
+             "in one cluster (chaining), so the cut is taken from Ward."),
+            ("Factor loadings after varimax rotation",
+             "unit3_02_factor_loadings.png",
+             "An orthogonal rotation leaves the likelihood unchanged, so the "
+             "loadings are identified only up to a rotation — varimax picks "
+             "the most interpretable member of that family for free."),
+            ("EM convergence and model selection", "unit3_04_gmm_em.png",
+             "Left: the log-likelihood never decreases, which is EM's "
+             "guarantee. Right: BIC has a genuine minimum, unlike inertia."),
+        ]:
+            p = FIGS / fname
+            if p.exists():
+                st.subheader(title)
+                st.image(str(p), use_container_width=True)
+                st.caption(note)
+
+        with st.expander("Browse every SKU and its segment"):
+            cols = [c for c in [
+                "stock_code", "description", "segment", "segment_name",
+                "mean_demand", "cv_demand", "zero_rate", "adi", "q4_ratio",
+                "silhouette", "gmm_max_responsibility",
+            ] if c in seg.columns]
+            st.dataframe(seg[cols].round(3), hide_index=True,
+                         use_container_width=True, height=420)
+
+
+# ================================================================ PAGE 8
+elif page.startswith("8"):
+    st.title("Demand Regimes — Unit 4 (sequential models)")
+    reg_df = load_regimes_df()
+    if guard(reg_df, "Demand regimes", "python scripts/run_sequential.py"):
+        find = read_json("unit4_findings.json")
+        hmm_info = find.get("hmm", {})
+        lds_info = find.get("lds", {})
+
+        st.caption(
+            "A hidden Markov model over the business-wide daily series. The "
+            "regime is never recorded in the data — it is inferred from how "
+            "demand behaves, and it is what should set safety stock."
+        )
+
+        c = st.columns(4)
+        c[0].metric("Trading days", f"{len(reg_df):,}")
+        c[1].metric("Regimes (HMM)", f"{hmm_info.get('n_regimes', '—')}")
+        c[2].metric("Baum-Welch iterations", f"{hmm_info.get('n_iter', '—')}")
+        gain = lds_info.get("rmse_improvement_pct")
+        c[3].metric(
+            "Kalman vs naive RW",
+            f"{gain:+.1f}%" if isinstance(gain, (int, float)) else "—",
+            help="Held-out one-step RMSE improvement over a random walk",
+        )
+
+        st.subheader("The three learned regimes")
+        regimes = read_csv("unit4_hmm_regimes.csv")
+        if not regimes.empty:
+            st.dataframe(
+                regimes[[
+                    "label", "mean_demand_units", "std_log1p",
+                    "self_transition", "expected_duration_days",
+                    "stationary_prob",
+                ]].round(3),
+                hide_index=True, use_container_width=True,
+            )
+            st.caption(
+                "A self-transition near 1 means the regime persists: these are "
+                "genuine multi-week states, not day-to-day noise. "
+                "Expected duration is 1/(1 - self_transition)."
+            )
+
+        st.subheader("Why this matters for stocking")
+        mult = read_csv("unit4_regime_safety_multipliers.csv")
+        if not mult.empty:
+            st.dataframe(mult.round(3), hide_index=True, use_container_width=True)
+            di = find.get("decision_integration", {})
+            spread = di.get("multiplier_spread")
+            if spread:
+                st.warning(
+                    f"Demand volatility differs **{spread:.1f}x** between the "
+                    "calmest and busiest regime. A single pooled safety stock "
+                    "is therefore simultaneously too small during SURGE and "
+                    "oversized during QUIET — the regime, not the average, is "
+                    "what a buffer should be sized against."
+                )
+            st.caption(
+                "Computed from the **filtered** posterior p(z_t | x_1:t), not "
+                "the smoothed one. Smoothing uses future observations, which a "
+                "buyer standing on day t does not have."
+            )
+
+        st.subheader("Regime timeline")
+        if "viterbi_regime_name" in reg_df.columns:
+            chart_df = reg_df[["date", "total_demand", "viterbi_regime_name"]].copy()
+            st.scatter_chart(
+                chart_df, x="date", y="total_demand",
+                color="viterbi_regime_name", height=360,
+            )
+            st.caption("Viterbi (MAP) decoding of the whole sequence.")
+
+        st.subheader("Kalman filter: estimating the true demand level")
+        lvl_cols = [c for c in ["kalman_filtered_level", "kalman_smoothed_level",
+                                "log1p_demand"] if c in reg_df.columns]
+        if lvl_cols:
+            st.line_chart(reg_df.set_index("date")[lvl_cols], height=340)
+            if lds_info:
+                var_cut = 100 * (
+                    1 - lds_info.get("mean_smoothed_var", 1)
+                    / max(lds_info.get("mean_filtered_var", 1), 1e-12)
+                )
+                st.caption(
+                    f"Fitted by maximum likelihood: q = {lds_info.get('q', 0):.5f}, "
+                    f"r = {lds_info.get('r', 0):.5f}, giving a steady-state "
+                    f"Kalman gain of {lds_info.get('steady_state_gain', 0):.3f}. "
+                    "The gain is also the alpha of the equivalent exponential "
+                    "smoother — so the smoothing constant is estimated, not "
+                    f"guessed. Smoothing cut the mean level variance by "
+                    f"{var_cut:.0f}%, but it uses future data and so is for "
+                    "retrospective analysis only."
+                )
+
+        st.subheader("Two decoders, two different answers")
+        dec = read_csv("unit4_decoder_comparison.csv")
+        if not dec.empty:
+            d = dec.iloc[0]
+            c1, c2, c3 = st.columns(3)
+            c1.metric("Days they disagree",
+                      f"{int(d['n_disagreements'])}/{int(d['n_timesteps'])}",
+                      f"{d['disagreement_rate']:.1%}")
+            c2.metric("Viterbi regime switches", int(d["viterbi_n_switches"]))
+            c3.metric("Posterior regime switches", int(d["posterior_n_switches"]))
+            st.caption(
+                "Posterior decoding takes the most likely state at each day "
+                "independently and never consults the transition matrix, so it "
+                "switches regime more often and can even emit a sequence the "
+                "model considers impossible. Viterbi maximises the probability "
+                "of the path as a whole and is always a legal sequence — here "
+                f"by {d['logprob_advantage_viterbi']:.1f} log-units."
+            )
+
+        st.subheader("Markov model of demand states")
+        c1, c2 = st.columns(2)
+        with c1:
+            tm = read_csv("unit4_markov_transition_matrix.csv")
+            if not tm.empty:
+                st.dataframe(tm.round(3), hide_index=True,
+                             use_container_width=True)
+                st.caption("Each row sums to 1 — a probability distribution.")
+        with c2:
+            pers = read_csv("unit4_markov_persistence.csv")
+            if not pers.empty:
+                st.dataframe(pers.round(3), hide_index=True,
+                             use_container_width=True)
+                mk = find.get("markov", {})
+                pval = mk.get("independence_pvalue")
+                if pval is not None:
+                    st.caption(
+                        "The buckets are equal-sized quantiles, so a uniform "
+                        "stationary distribution proves nothing. The test is "
+                        "whether the diagonal beats independence: chi-square "
+                        f"= {mk.get('independence_chi2', 0):.1f}, p = {pval:.2e} "
+                        "— busy days really do cluster."
+                    )
+
+        with st.expander("Scaling factors: the underflow they prevent"):
+            sc = find.get("scaling", {})
+            und = read_csv("unit4_scaling_underflow.csv")
+            if sc:
+                st.markdown(
+                    "- At the real sequence length T = "
+                    f"{sc.get('real_sequence_length')} the naive product is about "
+                    "1e-217 — small, but still **finite**, so this series does "
+                    "not underflow.\n"
+                    "- Tiling the series to find the breaking point: the "
+                    "unscaled recursion survives T = "
+                    f"{sc.get('unscaled_survives_to_T')} and collapses to -inf "
+                    f"by T = {sc.get('unscaled_underflow_at_T')}.\n"
+                    "- The scaled recursion is still finite at T = "
+                    f"{sc.get('scaled_still_finite_at_T')}, because "
+                    "log p(x) = sum of log c_t is a **sum** of logs and cannot "
+                    "underflow."
+                )
+            if not und.empty:
+                st.line_chart(und.set_index("T")["loglik_scaled"], height=260)
+
+        with st.expander("Sum-product == forward-backward (verification)"):
+            sp = read_csv("unit4_sum_product_verification.csv")
+            if not sp.empty:
+                st.dataframe(sp.T.rename(columns={0: "value"}),
+                             use_container_width=True)
+                st.caption(
+                    "Every difference is at machine precision: forward-backward "
+                    "really is sum-product on an HMM chain, and Viterbi really "
+                    "is its max-product analogue. These are not claims taken on "
+                    "trust — they are computed both ways and compared."
+                )
+
+        for title, fname in [
+            ("Autocorrelation and the raw series", "unit4_01_sequential.png"),
+            ("Scaling factors and EM convergence", "unit4_02_scaling_em.png"),
+            ("Kalman level and decoded regimes", "unit4_03_kalman_regimes.png"),
+            ("Forward-backward regime posteriors",
+             "unit4_04_regime_posteriors.png"),
+        ]:
+            p = FIGS / fname
+            if p.exists():
+                st.subheader(title)
+                st.image(str(p), use_container_width=True)
+
+        with st.expander("Browse the daily regime table"):
+            cols = [c for c in [
+                "date", "total_demand", "markov_state_name",
+                "viterbi_regime_name", "filtered_regime_name",
+                "kalman_filtered_level", "kalman_smoothed_level", "split",
+            ] if c in reg_df.columns]
+            st.dataframe(reg_df[cols].round(3), hide_index=True,
+                         use_container_width=True, height=420)
