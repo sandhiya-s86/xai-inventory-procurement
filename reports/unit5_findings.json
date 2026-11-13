@@ -1,0 +1,245 @@
+{
+  "target": "reorder_flag",
+  "n_features": 52,
+  "n_train": 66859,
+  "n_val": 16239,
+  "n_test": 16689,
+  "positive_rate_train": 0.31237380158243466,
+  "positive_rate_test": 0.3169752531607646,
+  "grow": {
+    "max_depth_cap": 10,
+    "min_samples_leaf": 30,
+    "grow_seconds": 5.800445318222046,
+    "full_leaves": 52,
+    "full_depth": 10
+  },
+  "pruning": {
+    "n_subtrees": 13,
+    "alpha_star": 7.500023511535154e-05,
+    "full_leaves": 52,
+    "pruned_leaves": 16,
+    "pruned_depth": 10,
+    "full_train_f1": 0.7949032225116184,
+    "full_val_f1": 0.7784597568037058,
+    "pruned_train_f1": 0.7910285844034615,
+    "pruned_val_f1": 0.7811571003887492,
+    "alphas_monotone": true,
+    "leaves_monotone": true
+  },
+  "test_full": {
+    "accuracy": 0.8635029061058183,
+    "precision": 0.8167858645351284,
+    "recall": 0.7340264650283553,
+    "f1": 0.7731979291119077,
+    "roc_auc": 0.8519602671344998
+  },
+  "test_pruned": {
+    "accuracy": 0.8632632272754509,
+    "precision": 0.8076923076923077,
+    "recall": 0.7463137996219281,
+    "f1": 0.7757909215955984,
+    "roc_auc": 0.8535653477380282
+  },
+  "criterion": {
+    "f1_difference": 0.0023293959838446288,
+    "rows": [
+      {
+        "criterion": "gini",
+        "fit_seconds": 2.073995351791382,
+        "n_leaves": 23,
+        "accuracy": 0.8635029061058183,
+        "precision": 0.8070962479608483,
+        "recall": 0.7482041587901701,
+        "f1": 0.7765352167941927,
+        "roc_auc": 0.8545623840913315
+      },
+      {
+        "criterion": "entropy",
+        "fit_seconds": 2.904635190963745,
+        "n_leaves": 28,
+        "accuracy": 0.8577506141770028,
+        "precision": 0.7790964777947933,
+        "recall": 0.7693761814744802,
+        "f1": 0.774205820810348,
+        "roc_auc": 0.8629381063672386
+      }
+    ]
+  },
+  "depth_study": [
+    {
+      "max_depth": 1,
+      "n_leaves": 2,
+      "train_f1": 0.7835763431779229,
+      "val_f1": 0.7775,
+      "test_f1": 0.7772660460558549,
+      "train_val_gap": 0.006076343177922938
+    },
+    {
+      "max_depth": 2,
+      "n_leaves": 3,
+      "train_f1": 0.7835763431779229,
+      "val_f1": 0.7775,
+      "test_f1": 0.7772660460558549,
+      "train_val_gap": 0.006076343177922938
+    },
+    {
+      "max_depth": 3,
+      "n_leaves": 5,
+      "train_f1": 0.7873128723777099,
+      "val_f1": 0.7775,
+      "test_f1": 0.7772660460558549,
+      "train_val_gap": 0.009812872377709891
+    },
+    {
+      "max_depth": 4,
+      "n_leaves": 8,
+      "train_f1": 0.7873128723777099,
+      "val_f1": 0.7775,
+      "test_f1": 0.7772660460558549,
+      "train_val_gap": 0.009812872377709891
+    },
+    {
+      "max_depth": 5,
+      "n_leaves": 14,
+      "train_f1": 0.7883211678832117,
+      "val_f1": 0.7779420125071063,
+      "test_f1": 0.7765352167941927,
+      "train_val_gap": 0.010379155376105453
+    },
+    {
+      "max_depth": 6,
+      "n_leaves": 23,
+      "train_f1": 0.7886029873227062,
+      "val_f1": 0.7779420125071063,
+      "test_f1": 0.7765352167941927,
+      "train_val_gap": 0.01066097481559991
+    },
+    {
+      "max_depth": 8,
+      "n_leaves": 61,
+      "train_f1": 0.791089309193891,
+      "val_f1": 0.7810528730358987,
+      "test_f1": 0.7743397713835238,
+      "train_val_gap": 0.010036436157992323
+    },
+    {
+      "max_depth": 10,
+      "n_leaves": 125,
+      "train_f1": 0.7949032225116184,
+      "val_f1": 0.7784597568037058,
+      "test_f1": 0.7731979291119077,
+      "train_val_gap": 0.016443465707912552
+    },
+    {
+      "max_depth": 14,
+      "n_leaves": 238,
+      "train_f1": 0.8015152301385502,
+      "val_f1": 0.769394261424017,
+      "test_f1": 0.774291191605287,
+      "train_val_gap": 0.03212096871453318
+    }
+  ],
+  "n_features_used": 8,
+  "top_features": [
+    {
+      "feature": "stock_vs_leadtime_demand",
+      "importance": 0.9849848358792158
+    },
+    {
+      "feature": "day_of_year",
+      "importance": 0.0085092374780184
+    },
+    {
+      "feature": "demand_cv_28",
+      "importance": 0.0029395134918361603
+    },
+    {
+      "feature": "median_price",
+      "importance": 0.0009280867007712604
+    },
+    {
+      "feature": "rolling_std_28",
+      "importance": 0.0008199161581394412
+    },
+    {
+      "feature": "rolling_mean_28",
+      "importance": 0.0007510709255131087
+    },
+    {
+      "feature": "price_baseline_28",
+      "importance": 0.0006340493556542428
+    },
+    {
+      "feature": "rolling_mean_7",
+      "importance": 0.0004332900108516156
+    }
+  ],
+  "readable_tree": {
+    "n_leaves": 8,
+    "max_depth": 4,
+    "test_f1": 0.7772660460558549,
+    "f1_cost_vs_tuned": 0.0014751244602565494
+  },
+  "regression_tree": {
+    "best": {
+      "max_depth": 3,
+      "n_leaves": 8,
+      "MAE": 146.83075078211797,
+      "MSE": 106021.37654715485,
+      "RMSE": 325.609239038383,
+      "R2": 0.37564610864526926,
+      "RMSLE": 1.1643735850862076
+    },
+    "rows": [
+      {
+        "max_depth": 3,
+        "n_leaves": 8,
+        "MAE": 146.83075078211797,
+        "MSE": 106021.37654715485,
+        "RMSE": 325.609239038383,
+        "R2": 0.37564610864526926,
+        "RMSLE": 1.1643735850862076
+      },
+      {
+        "max_depth": 5,
+        "n_leaves": 32,
+        "MAE": 153.10801825845968,
+        "MSE": 130615.61022784693,
+        "RMSE": 361.40781705415134,
+        "R2": 0.23081205721604592,
+        "RMSLE": 1.1110941096341143
+      },
+      {
+        "max_depth": 8,
+        "n_leaves": 161,
+        "MAE": 161.01355182047564,
+        "MSE": 137735.87892210254,
+        "RMSE": 371.1278471390991,
+        "R2": 0.18888119750142496,
+        "RMSLE": 1.0914186202658234
+      }
+    ]
+  },
+  "comparison": {
+    "cart_rank": 3,
+    "n_models": 8,
+    "cart_test_f1": 0.7757909215955984,
+    "best_test_f1": 0.7779981965734897,
+    "best_model": "LightGBM Classifier",
+    "f1_gap_to_best": -0.0022072749778913048
+  },
+  "one_rule_baseline": {
+    "feature": "stock_vs_leadtime_demand",
+    "threshold": 1.0069226565432907,
+    "threshold_chosen_on": "validation",
+    "test_f1": 0.7777003484320557,
+    "test_recall": 0.7383742911153119,
+    "test_precision": 0.8214511041009463,
+    "test_accuracy": 0.8661992929474505,
+    "beats_every_model": false,
+    "f1_vs_best_model": -0.0002978481414339651,
+    "label_definition": "future lead-time demand > current stock * (1 + tol)",
+    "feature_definition": "current stock / (trailing 28d mean * lead time)",
+    "interpretation": "The feature is the leakage-free proxy for the comparison the label thresholds, so it already contains the decision. Residual error is demand-forecast error, which bounds every classifier on this task."
+  }
+}

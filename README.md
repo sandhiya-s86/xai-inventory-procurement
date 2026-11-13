@@ -1,6 +1,6 @@
 # Explainable AI-Driven Decision Support for Predictive Inventory and Procurement Optimization in ERP Systems
 
-**PBL-1 · Machine Learning (Units 1–4)**
+**PBL-1 · Machine Learning (Units 1–5)**
 
 An end-to-end system that turns 1,067,371 real retail transactions into
 auditable purchase recommendations — and explains every one of them.
@@ -47,7 +47,8 @@ Historical sales  →  Cleaning  →  EDA  →  Features  →  Regression (7-day
 | **Demand regimes (Unit 4)** | HMM finds QUIET / NORMAL / **SURGE**; SURGE lands on the Christmas peak in both years |
 | **Regime-aware buffers** | Volatility differs **2.1×** across regimes — a pooled safety stock is wrong in both directions |
 | **SKU segments (Unit 3)** | **5 segments** from 13 behavioural features; 31 SKUs sit genuinely between them |
-| **Verification** | **239 tests passing**, 20 pipeline stages, 10 notebooks, **8/8 dashboard pages** Playwright-verified |
+| **CART (Unit 5)** | A **16-leaf readable tree** lands within **0.0022 F1** of a gradient-boosted ensemble |
+| **Verification** | **295 tests passing**, 21 pipeline stages, **103/103 rubric checks**, **9/9 dashboard pages** Playwright-verified |
 
 Three findings reported because they are true, not because they flatter:
 
@@ -66,6 +67,11 @@ Three findings reported because they are true, not because they flatter:
   product is ~1e-217, above float64's floor; the naive recursion only dies at
   T = 1,000. Reported rather than claiming a textbook underflow that did not
   happen.
+- **A single threshold matches the best model.** CART put 98.5% of its
+  importance on one feature, so that was tested: `stock_vs_leadtime_demand
+  <= 1.01` scores test F1 **0.7777** against LightGBM's **0.7780**. Every
+  classifier here shares a ceiling set by the *task*, not the algorithm —
+  a finding the black-box models reached and concealed.
 
 ---
 
@@ -89,14 +95,49 @@ so "from scratch" does not quietly become "from scratch and wrong".
 - Dashboard pages **7 · SKU Segmentation** and **8 · Demand Regimes**
 
 ```bash
-.venv\Scripts\python scriptsun_unsupervised.py   # Unit 3
-.venv\Scripts\python scriptsun_sequential.py     # Unit 4
+.venv\Scripts\python scripts
+un_unsupervised.py   # Unit 3
+.venv\Scripts\python scripts
+un_sequential.py     # Unit 4
 .venv\Scripts\python scriptsuild_unit34_docs.py  # the two PDFs
 .venv\Scripts\python scriptserify_dashboard.py   # drive all 8 pages in Chromium
 ```
 
 > Unit 5 is **not** covered — the Drive link supplied for it returns HTTP 401
 > without authentication, so its syllabus could not be read.
+
+---
+
+## Unit 5 — CART (Classification and Regression Trees)
+
+Full write-up: **[`docs/unit5-cart.md`](docs/unit5-cart.md)**
+
+Topic 40 plus **Practice 1** (implement CART to perform categorization), written
+from first principles in [`src/xaierp/trees/cart.py`](src/xaierp/trees/cart.py):
+binary recursive partitioning, Gini / entropy / MSE, **minimal cost-complexity
+pruning**, impurity importances, and human-readable decision rules.
+
+Why CART out of the seven Unit 5 topics: this project's thesis is
+explainability. Every other classifier answers "reorder?" with a probability
+and needs SHAP; a pruned tree answers with a **rule** a buyer can audit and
+overrule. It is also the base learner the rest of Unit 5 (boosting, ensembles,
+adaptive basis functions) would build on.
+
+| | Leaves | Train F1 | Val F1 | Gap | Test F1 |
+|---|---|---|---|---|---|
+| Full tree | 52 | 0.7949 | 0.7785 | +0.0164 | 0.7732 |
+| **Pruned** (α = 7.5e-5) | **16** | 0.7910 | 0.7812 | **+0.0099** | **0.7758** |
+
+Pruning removed 69% of the leaves, narrowed the train/validation gap, and test
+F1 went *up*.
+
+```bash
+.venv\Scripts\python scriptsun_cart.py        # Unit 5
+```
+
+Dashboard page **9 · Decision Rules**. Not covered: the other six Unit 5 topics
+(Bayesian model averaging, boosting, adaptive basis functions, GAMs, ensemble
+learning, Practice 2) — one topic was requested.
 
 ---
 

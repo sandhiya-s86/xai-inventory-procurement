@@ -1,0 +1,7 @@
+stock_code,date,actual_reorder,predicted_reorder,rule
+15036,2011-08-24,0,0,"IF stock_vs_leadtime_demand > 1.04 THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)"
+21621,2011-10-02,0,0,"IF stock_vs_leadtime_demand > 1.04 THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)"
+22356,2011-11-07,1,1,"IF stock_vs_leadtime_demand <= 1.04    AND stock_vs_leadtime_demand <= 0.52    AND stock_vs_leadtime_demand <= 0.27    AND zero_rate_7 <= 0.79 THEN predict 1 (confidence 99%, 8,612 training rows in this leaf)"
+22699,2011-09-30,1,0,"IF stock_vs_leadtime_demand > 1.04 THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)"
+48187,2011-10-23,0,0,"IF stock_vs_leadtime_demand > 1.04 THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)"
+85152,2011-12-02,1,0,"IF stock_vs_leadtime_demand > 1.04 THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)"

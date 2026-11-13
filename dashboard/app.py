@@ -130,6 +130,7 @@ page = st.sidebar.radio(
         "6 · Model Comparison",
         "7 · SKU Segmentation (Unit 3)",
         "8 · Demand Regimes (Unit 4)",
+        "9 · Decision Rules (Unit 5)",
     ],
 )
 st.sidebar.markdown("---")
@@ -835,3 +836,208 @@ elif page.startswith("8"):
             ] if c in reg_df.columns]
             st.dataframe(reg_df[cols].round(3), hide_index=True,
                          use_container_width=True, height=420)
+
+
+# ================================================================ PAGE 9
+elif page.startswith("9"):
+    st.title("Decision Rules — Unit 5 (CART)")
+    find = read_json("unit5_findings.json")
+    rules_path = REPORTS / "unit5_tree_rules.txt"
+
+    if not find:
+        st.error("CART results not found. Run `python scripts/run_cart.py` first.")
+    else:
+        st.caption(
+            "Every other classifier in this project answers \"reorder?\" with a "
+            "probability and needs SHAP to explain itself. A pruned tree "
+            "answers with a **rule** — one a buyer can read, check against "
+            "their own judgement, and overrule."
+        )
+
+        pruning = find.get("pruning", {})
+        readable = find.get("readable_tree", {})
+        comp = find.get("comparison", {})
+
+        c = st.columns(4)
+        c[0].metric("Leaves after pruning",
+                    f"{pruning.get('pruned_leaves', '—')}",
+                    f"from {pruning.get('full_leaves', '—')}")
+        c[1].metric("Test F1 (pruned)",
+                    f"{find.get('test_pruned', {}).get('f1', 0):.4f}")
+        c[2].metric("Rank vs all classifiers",
+                    f"{comp.get('cart_rank', '—')} of {comp.get('n_models', '—')}",
+                    f"{comp.get('f1_gap_to_best', 0):+.4f} F1 vs best")
+        c[3].metric("Features actually used",
+                    f"{find.get('n_features_used', '—')} of {find.get('n_features', '—')}")
+
+        # ---------------------------------------------------- the headline
+        one = find.get("one_rule_baseline", {})
+        if one:
+            st.subheader("The finding that matters")
+            st.warning(
+                f"The tree put **{find.get('top_features', [{}])[0].get('importance', 0):.1%} "
+                f"of its importance on a single feature**, so that claim was "
+                f"tested directly. A single threshold —\n\n"
+                f"### `IF {one.get('feature')} ≤ {one.get('threshold', 0):.2f} THEN reorder`\n\n"
+                f"— scores **test F1 {one.get('test_f1', 0):.4f}**, against "
+                f"{comp.get('best_test_f1', 0):.4f} for the best of eight "
+                f"models ({one.get('f1_vs_best_model', 0):+.4f}). The threshold "
+                f"was chosen on the validation split, the same discipline every "
+                f"other model got."
+            )
+            st.markdown(
+                f"""
+**Why.** The simulator defines the label as
+
+> `{one.get('label_definition')}`
+
+and `{one.get('feature')}` is
+
+> `{one.get('feature_definition')}`
+
+— the leakage-free proxy for that same comparison. The feature is **not**
+leaking (it uses only trailing data), but it already contains the decision.
+The residual error is *demand-forecast* error, which no classifier can remove
+because the forecast is baked into the feature. That is why all eight models
+cluster near F1 0.75–0.78: they share a ceiling set by the task, not by the
+algorithm.
+
+**This is the argument for interpretable models, made concrete.** LightGBM
+reaches the same ceiling and conceals why. CART makes it visible in one split
+— and the finding is a property of the *task*, not of the model.
+"""
+            )
+
+        # ---------------------------------------------------------- rules
+        st.subheader("The tree a buyer would actually be shown")
+        if readable:
+            st.caption(
+                f"{readable.get('n_leaves')} leaves, depth "
+                f"{readable.get('max_depth')}, test F1 "
+                f"{readable.get('test_f1', 0):.4f} "
+                f"({readable.get('f1_cost_vs_tuned', 0):+.4f} against the "
+                f"tuned tree — readability is close to free here)."
+            )
+        tree_txt = REPORTS / "unit5_tree_text.txt"
+        if tree_txt.exists():
+            st.code(tree_txt.read_text(encoding="utf-8"), language="text")
+
+        st.subheader("Worked decisions from the test period")
+        ex = read_csv("unit5_rule_examples.csv")
+        if not ex.empty:
+            for _, r in ex.iterrows():
+                hit = r["actual_reorder"] == r["predicted_reorder"]
+                with st.expander(
+                    f"{'✓' if hit else '✗'} SKU {r['stock_code']} on {r['date']} "
+                    f"— predicted {'REORDER' if r['predicted_reorder'] else 'no order'}, "
+                    f"actual {'REORDER' if r['actual_reorder'] else 'no order'}"
+                ):
+                    st.code(str(r["rule"]).replace(" AND ", "\n   AND ")
+                            .replace("THEN", "\nTHEN"), language="text")
+
+        # -------------------------------------------------------- pruning
+        st.subheader("Cost-complexity pruning")
+        st.markdown(
+            r"""
+What makes this CART rather than just a decision tree. Instead of an
+arbitrary depth cap, price each leaf and minimise
+
+$$R_\alpha(T) = R(T) + \alpha\,|\text{leaves}(T)|$$
+
+As $\alpha$ rises, whole subtrees stop paying for themselves. The sequence of
+subtrees is **finite and nested**, so every tree worth considering can be
+enumerated and $\alpha$ chosen on a validation set rather than guessed.
+"""
+        )
+        pp = read_csv("unit5_pruning_path.csv")
+        if not pp.empty:
+            c1, c2 = st.columns([3, 2])
+            with c1:
+                st.line_chart(
+                    pp.set_index("n_leaves")[["train_f1", "val_f1"]], height=320
+                )
+                st.caption(
+                    "Training F1 keeps rising with more leaves; validation F1 "
+                    "does not. The gap between them is what pruning buys back."
+                )
+            with c2:
+                st.dataframe(
+                    pp[["ccp_alpha", "n_leaves", "train_f1", "val_f1"]].round(5),
+                    hide_index=True, use_container_width=True, height=320,
+                )
+            st.success(
+                f"Pruning removed "
+                f"{pruning.get('full_leaves', 0) - pruning.get('pruned_leaves', 0)} "
+                f"of {pruning.get('full_leaves', 0)} leaves and narrowed the "
+                f"train/validation gap from "
+                f"{pruning.get('full_train_f1', 0) - pruning.get('full_val_f1', 0):+.4f} "
+                f"to "
+                f"{pruning.get('pruned_train_f1', 0) - pruning.get('pruned_val_f1', 0):+.4f}"
+                f" — and test F1 went *up*, from "
+                f"{find.get('test_full', {}).get('f1', 0):.4f} to "
+                f"{find.get('test_pruned', {}).get('f1', 0):.4f}."
+            )
+
+        # ----------------------------------------------------- comparisons
+        st.subheader("Against every other classifier")
+        mc = read_csv("unit5_model_comparison.csv")
+        if not mc.empty:
+            st.dataframe(mc.round(4), hide_index=True, use_container_width=True)
+            st.caption(
+                "A 16-leaf tree you can read on one page lands within "
+                f"{abs(comp.get('f1_gap_to_best', 0)):.4f} F1 of a "
+                "gradient-boosted ensemble of hundreds of trees."
+            )
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Gini vs entropy")
+            cc = read_csv("unit5_criterion_comparison.csv")
+            if not cc.empty:
+                st.dataframe(
+                    cc[["criterion", "n_leaves", "fit_seconds", "f1", "roc_auc"]].round(4),
+                    hide_index=True, use_container_width=True,
+                )
+                st.caption(
+                    f"They pick almost the same splits (F1 differs by "
+                    f"{find.get('criterion', {}).get('f1_difference', 0):.4f}); "
+                    "Gini is faster because it needs no logarithm in the inner "
+                    "loop. Measured, not assumed."
+                )
+        with c2:
+            st.subheader("Regression tree (the 'R' in CART)")
+            rt = read_csv("unit5_regression_tree.csv")
+            if not rt.empty:
+                st.dataframe(rt[["max_depth", "n_leaves", "RMSE", "R2"]].round(4),
+                             hide_index=True, use_container_width=True)
+                st.caption(
+                    "Reported because it is true: a single regression tree gets "
+                    "*worse* with depth here, and its best R² sits well below "
+                    "Ridge's 0.510. Trees are high-variance; this one is here "
+                    "to be read, not to win."
+                )
+
+        st.subheader("What the pruned tree splits on")
+        fi = read_csv("unit5_feature_importance.csv")
+        if not fi.empty:
+            st.dataframe(fi.round(4), hide_index=True, use_container_width=True)
+            st.caption(
+                "Impurity-decrease importance. Known bias worth stating: it "
+                "favours high-cardinality continuous features, which offer more "
+                "candidate thresholds. It describes *this tree*, and is not a "
+                "causal claim."
+            )
+
+        for title, fname in [
+            ("Cost-complexity pruning", "unit5_01_pruning.png"),
+            ("Depth study", "unit5_02_depth_study.png"),
+            ("Feature importance", "unit5_03_feature_importance.png"),
+        ]:
+            p = FIGS / fname
+            if p.exists():
+                st.subheader(title)
+                st.image(str(p), use_container_width=True)
+
+        if rules_path.exists():
+            with st.expander("Full tree and all worked examples (text)"):
+                st.code(rules_path.read_text(encoding="utf-8"), language="text")

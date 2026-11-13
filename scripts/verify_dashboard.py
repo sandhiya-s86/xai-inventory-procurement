@@ -47,6 +47,10 @@ PAGES = [
     ("8 · Demand Regimes (Unit 4)",
      ["Demand Regimes", "The three learned regimes", "Why this matters for stocking",
       "Kalman filter", "Two decoders", "Markov model of demand states"]),
+    ("9 · Decision Rules (Unit 5)",
+     ["Decision Rules", "The finding that matters",
+      "Cost-complexity pruning", "Against every other classifier",
+      "Gini vs entropy"]),
 ]
 
 # Streamlit renders a tracebacks in an element with this test id; its presence

@@ -1,0 +1,2 @@
+rule,threshold_chosen_on,accuracy,precision,recall,f1,roc_auc
+stock_vs_leadtime_demand <= 1.0069,validation split,0.8661992929474505,0.8214511041009463,0.7383742911153119,0.7777003484320557,

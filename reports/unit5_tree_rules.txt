@@ -1,0 +1,110 @@
+CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=CART decision rules for the reorder decision
+=
+
+Readable tree: 8 leaves, depth 4, test F1 0.7773
+
+stock_vs_leadtime_demand <= 1.04 [gini=0.500 n=66,859]
+|   |--- yes: stock_vs_leadtime_demand <= 0.52 [gini=0.170 n=19,374]
+|   |   |--- yes: stock_vs_leadtime_demand <= 0.27 [gini=0.049 n=11,705]
+|   |   |   |--- yes: zero_rate_7 <= 0.79 [gini=0.022 n=8,820]
+|   |   |   |   |--- yes: predict=1 p=0.99 n=8,612
+|   |   |   |   |--- no:  predict=1 p=0.78 n=208
+|   |   |   |--- no:  demand_cv_28 <= 2.32 [gini=0.131 n=2,885]
+|   |   |   |   |--- yes: predict=1 p=0.94 n=2,685
+|   |   |   |   |--- no:  predict=1 p=0.66 n=200
+|   |   |--- no:  day_of_year <= 342.50 [gini=0.347 n=7,669]
+|   |   |   |--- yes: stock_vs_leadtime_demand <= 0.73 [gini=0.331 n=7,356]
+|   |   |   |   |--- yes: predict=1 p=0.87 n=2,854
+|   |   |   |   |--- no:  predict=1 p=0.74 n=4,502
+|   |   |   |--- no:  predict=0 p=0.71 n=313
+|   |--- no:  predict=0 p=0.79 n=47,485
+
+============================================================
+WORKED EXAMPLES
+============================================================
+
+SKU 15036 on 2011-08-24 (actual: no order)
+IF stock_vs_leadtime_demand > 1.04
+THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)
+
+SKU 21621 on 2011-10-02 (actual: no order)
+IF stock_vs_leadtime_demand > 1.04
+THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)
+
+SKU 22356 on 2011-11-07 (actual: REORDER)
+IF stock_vs_leadtime_demand <= 1.04
+   AND stock_vs_leadtime_demand <= 0.52
+   AND stock_vs_leadtime_demand <= 0.27
+   AND zero_rate_7 <= 0.79
+THEN predict 1 (confidence 99%, 8,612 training rows in this leaf)
+
+SKU 22699 on 2011-09-30 (actual: REORDER)
+IF stock_vs_leadtime_demand > 1.04
+THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)
+
+SKU 48187 on 2011-10-23 (actual: no order)
+IF stock_vs_leadtime_demand > 1.04
+THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)
+
+SKU 85152 on 2011-12-02 (actual: REORDER)
+IF stock_vs_leadtime_demand > 1.04
+THEN predict 0 (confidence 79%, 47,485 training rows in this leaf)

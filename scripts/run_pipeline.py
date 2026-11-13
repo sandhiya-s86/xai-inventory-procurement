@@ -50,6 +50,8 @@ STAGES: list[tuple[str, list[str], str]] = [
      "Unit 3: dissimilarity, PCA, factor analysis, K-means, GMM/EM, hierarchical"),
     ("sequential", ["scripts/run_sequential.py"],
      "Unit 4: Markov, HMM/Baum-Welch, forward-backward, Viterbi, sum-product, Kalman"),
+    ("cart", ["scripts/run_cart.py"],
+     "Unit 5: CART + cost-complexity pruning + readable decision rules"),
     ("explainability", ["scripts/run_explainability.py"],
      "SHAP, case studies, what-if"),
     ("plots", ["scripts/make_result_plots.py"],

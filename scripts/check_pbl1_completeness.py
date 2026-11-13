@@ -241,6 +241,72 @@ def pdf_has_pages(rel: str, minimum: int) -> tuple[bool, str]:
     return True, f"{rel}: {n} pages ({p.stat().st_size/1024:.0f} KB)"
 
 
+# ------------------------------------------------------------ Unit 5 helpers
+
+
+def pruning_sequence_is_valid() -> tuple[bool, str]:
+    """Alphas must strictly increase while leaves strictly decrease.
+
+    That nesting is what makes cost-complexity pruning a *sequence* you can
+    search rather than a knob you guess, so it is worth gating on.
+    """
+    try:
+        pr = _findings("reports/unit5_findings.json").get("pruning", {})
+    except FileNotFoundError:
+        return False, "MISSING: reports/unit5_findings.json"
+    a_ok = bool(pr.get("alphas_monotone"))
+    l_ok = bool(pr.get("leaves_monotone"))
+    n = pr.get("n_subtrees")
+    if not (a_ok and l_ok):
+        return False, f"alphas_monotone={a_ok}, leaves_monotone={l_ok}"
+    return True, f"{n} nested subtrees; alphas increase, leaves decrease"
+
+
+def pruning_reduced_overfitting() -> tuple[bool, str]:
+    """The whole point of pruning: trade training fit for generalisation."""
+    try:
+        pr = _findings("reports/unit5_findings.json").get("pruning", {})
+    except FileNotFoundError:
+        return False, "MISSING: reports/unit5_findings.json"
+    full_gap = pr.get("full_train_f1", 0) - pr.get("full_val_f1", 0)
+    pruned_gap = pr.get("pruned_train_f1", 0) - pr.get("pruned_val_f1", 0)
+    if pruned_gap >= full_gap:
+        return False, (f"gap did not narrow: {full_gap:+.4f} -> {pruned_gap:+.4f}")
+    return True, (f"train/val gap {full_gap:+.4f} -> {pruned_gap:+.4f}, "
+                  f"{pr.get('full_leaves')} -> {pr.get('pruned_leaves')} leaves")
+
+
+def rules_are_readable() -> tuple[bool, str]:
+    """The rules file must contain real IF/THEN logic, not just exist."""
+    p = ROOT / "reports" / "unit5_tree_rules.txt"
+    if not p.exists():
+        return False, "MISSING: reports/unit5_tree_rules.txt"
+    text = p.read_text(encoding="utf-8")
+    if "IF " not in text or "THEN predict" not in text:
+        return False, "no IF/THEN rules found in the file"
+    n_rules = text.count("THEN predict")
+    return True, f"{n_rules} IF/THEN rules ({p.stat().st_size / 1024:.0f} KB)"
+
+
+def one_rule_baseline_recorded() -> tuple[bool, str]:
+    """The headline finding must be a measured comparison, not a claim.
+
+    The tree concentrated almost all its importance on one feature. That is a
+    statement about the TASK, so the rubric requires it to have been tested
+    against the best model rather than merely observed.
+    """
+    try:
+        ob = _findings("reports/unit5_findings.json").get("one_rule_baseline", {})
+    except FileNotFoundError:
+        return False, "MISSING: reports/unit5_findings.json"
+    if "test_f1" not in ob or "f1_vs_best_model" not in ob:
+        return False, "one-rule baseline not evaluated"
+    if ob.get("threshold_chosen_on") != "validation":
+        return False, "threshold was not selected on the validation split"
+    return True, (f"{ob['feature']} <= {ob['threshold']:.2f} -> test F1 "
+                  f"{ob['test_f1']:.4f} ({ob['f1_vs_best_model']:+.4f} vs best)")
+
+
 CHECKS: list[tuple[str, str, callable]] = [
     # ---- 1. Problem understanding & dataset familiarisation (4 marks)
     ("1. Problem Understanding", "Problem & scope documented",
@@ -451,6 +517,41 @@ CHECKS: list[tuple[str, str, callable]] = [
      lambda: pdf_has_pages("paper/Unit3_Unit4_Study_Guide.pdf", 12)),
     ("15. Unit 3/4 verification", "Unit 3/4 write-up",
      lambda: exists("docs/unit3-unit4.md")),
+
+    # ------------------------------------------------------- Unit 5 (CART)
+    ("16. Unit 5 (CART)", "CART implemented from scratch",
+     lambda: exists("src/xaierp/trees/cart.py")),
+    ("16. Unit 5 (CART)", "CART test suite",
+     lambda: exists("tests/test_unit5_cart.py")),
+    ("16. Unit 5 (CART)", "Cost-complexity pruning path computed",
+     lambda: csv_has_rows("reports/unit5_pruning_path.csv", 5)),
+    ("16. Unit 5 (CART)", "Pruning sequence is nested and monotone",
+     lambda: pruning_sequence_is_valid()),
+    ("16. Unit 5 (CART)", "Pruning narrowed the train/validation gap",
+     lambda: pruning_reduced_overfitting()),
+    ("16. Unit 5 (CART)", "alpha selected on the validation split",
+     lambda: json_subkeys("reports/unit5_findings.json", "pruning",
+                          ["alpha_star", "pruned_leaves"])),
+    ("16. Unit 5 (CART)", "Gini vs entropy compared",
+     lambda: csv_has_rows("reports/unit5_criterion_comparison.csv", 2)),
+    ("16. Unit 5 (CART)", "Depth study (overfitting evidence)",
+     lambda: csv_has_rows("reports/unit5_depth_study.csv", 6)),
+    ("16. Unit 5 (CART)", "Regression tree (the 'R' in CART)",
+     lambda: csv_has_rows("reports/unit5_regression_tree.csv", 3)),
+    ("16. Unit 5 (CART)", "Feature importances computed",
+     lambda: csv_has_rows("reports/unit5_feature_importance.csv", 3)),
+    ("16. Unit 5 (CART)", "Readable IF/THEN rules exported",
+     lambda: rules_are_readable()),
+    ("16. Unit 5 (CART)", "Worked rule examples on real test rows",
+     lambda: csv_has_rows("reports/unit5_rule_examples.csv", 5)),
+    ("16. Unit 5 (CART)", "Compared against every other classifier",
+     lambda: csv_has_rows("reports/unit5_model_comparison.csv", 6)),
+    ("16. Unit 5 (CART)", "One-rule baseline tested (the headline finding)",
+     lambda: one_rule_baseline_recorded()),
+    ("16. Unit 5 (CART)", "Unit 5 figures",
+     lambda: figures_matching("unit5_*.png", 3)),
+    ("16. Unit 5 (CART)", "Unit 5 write-up",
+     lambda: exists("docs/unit5-cart.md")),
 ]
 
 
